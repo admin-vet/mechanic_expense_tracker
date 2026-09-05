@@ -439,6 +439,34 @@
 
   // ---------------------------------------------------------------- dashboard
 
+  const WRENCH_PATH = 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z';
+  const GEAR_PATHS = [
+    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+    'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z',
+  ];
+
+  // A hardcoded, dependency-free mechanic-shop motif for the dashboard banner —
+  // inline SVG so it always renders (no photo upload, no external image request).
+  function dashboardBannerArt() {
+    return `
+      <svg viewBox="0 0 1600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;">
+        <g fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1">
+          <g transform="translate(1360,10) scale(6.2)">${GEAR_PATHS.map((p) => `<path d="${p}"/>`).join('')}</g>
+          <g transform="translate(60,150) rotate(-18) scale(9.5)"><path d="${WRENCH_PATH}"/></g>
+          <g transform="translate(1080,150) rotate(28) scale(5.5)"><path d="${WRENCH_PATH}"/></g>
+          <g transform="translate(210,-10) scale(3.4)">${GEAR_PATHS.map((p) => `<path d="${p}"/>`).join('')}</g>
+        </g>
+        <g fill="rgba(255,255,255,0.14)">
+          <circle cx="560" cy="55" r="3"/>
+          <circle cx="640" cy="95" r="2.2"/>
+          <circle cx="720" cy="40" r="2.6"/>
+          <circle cx="820" cy="110" r="2"/>
+          <circle cx="910" cy="60" r="2.4"/>
+        </g>
+      </svg>
+    `;
+  }
+
   function renderDashboard() {
     const years = getYears();
     const dashYear = state.dashboardYear || years[0];
@@ -471,7 +499,8 @@
 
     return `
       <div style="position:relative;height:220px;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg, var(--color-neutral-800), var(--color-neutral-900));">
-        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(32,30,29,0.25) 0%, rgba(32,30,29,0.75) 100%);"></div>
+        ${dashboardBannerArt()}
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(32,30,29,0.25) 0%, rgba(32,30,29,0.8) 100%);"></div>
         <div style="position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 32px 24px;">
           <div style="max-width:1000px;width:100%;margin:0 auto;display:flex;justify-content:space-between;align-items:center;">
             <h1 style="font-size:56px;margin:0;color:#fff;">${dashYear}</h1>
