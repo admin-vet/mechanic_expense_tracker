@@ -163,8 +163,16 @@
       if (state.categories.some((c) => c.name === trimmed && c.id !== id)) throw new Error('That category already exists.');
       const cat = state.categories.find((c) => c.id === id);
       if (!cat) throw new Error('Not found.');
+      const oldName = cat.name;
       cat.name = trimmed;
       cat.color = color;
+      if (oldName !== trimmed) {
+        // Equipment stores its category as a plain name, not an id -- a rename
+        // has to cascade here or every piece of equipment under the old name
+        // silently falls out of every category-based view (tile counts,
+        // category browsing, yearly-by-category totals, etc).
+        state.equipment.forEach((eq) => { if (eq.category === oldName) eq.category = trimmed; });
+      }
       persistDB();
     },
 
@@ -1988,8 +1996,10 @@
       const id = state.categoryEditModalOpenFor;
       const name = state.categoryEditDraft.trim();
       if (!name) return;
+      const oldName = (state.categories.find((c) => c.id === id) || {}).name;
       mutate(() => {
         Store.updateCategory(id, { name, color: state.categoryEditColorDraft });
+        if (state.selectedCategory === oldName) state.selectedCategory = name;
         state.categoryEditModalOpenFor = null;
       });
     },
