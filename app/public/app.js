@@ -514,6 +514,7 @@
     return `
       <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
         <div class="card" style="max-width:520px;width:100%;padding:32px;">
+          <button class="btn btn-ghost" data-action="goBack" style="margin-bottom:16px;padding:6px 10px;">← Back</button>
           <h1 style="font-size:24px;margin:0 0 12px;">Connect Google Drive</h1>
           <p style="color:var(--color-neutral-700);font-size:14px;line-height:1.6;margin:0 0 20px;">
             Farm Fleet Expenses keeps everything — categories, equipment, suppliers, and every
@@ -1800,6 +1801,7 @@
       state.gateBusy = false;
       render();
     },
+    goBack() { window.history.back(); },
     editDriveSetupInGate() {
       Drive.reset();
       state.driveClientId = '';
