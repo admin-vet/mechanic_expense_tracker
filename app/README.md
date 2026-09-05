@@ -61,11 +61,34 @@ that model closely, with one addition:
   demand from a CDN, so **the device viewing the page needs internet access** for that
   (and for the Google Fonts stylesheet — the UI falls back to the system font if that's
   blocked).
-- **The dashboard's decorative shop-photo banner was omitted** — it was a purely visual
-  placeholder in the prototype with no functional behavior.
+- **The dashboard's decorative shop-photo banner is a hardcoded inline SVG** (a wrench/gear
+  motif) instead of an uploaded photo — no image hosting needed, and it always renders on
+  Pages with no extra request.
 
 ## Backing up (static version)
 
 Settings → Backup (or the disk icon in the header) downloads a JSON snapshot of
 everything in this browser's data — categories, equipment, suppliers, and every expense.
 Restore-from-file isn't wired up yet; treat the export as an emergency copy.
+
+### Google Drive backup
+
+Settings → Backup also has a Google Drive option, so a backup survives clearing the
+browser or moving to a new device. It's entirely client-side (`app/public/drive.js`,
+using Google Identity Services — no server, no client secret) and needs a one-time setup
+per deployment:
+
+1. In the [Google Cloud Console credentials page](https://console.cloud.google.com/apis/credentials),
+   create an **OAuth Client ID** of type **Web application**.
+2. Under **Authorized JavaScript origins**, add the site's origin — e.g.
+   `https://admin-vet.github.io` (no path, no trailing slash).
+3. Enable the **Google Drive API** for that Cloud project (APIs & Services → Library).
+4. Paste the resulting Client ID into Settings → Backup → Google Drive backup. It's saved
+   only in that browser's `localStorage` — no code changes needed, and different
+   forks/deployments can each use their own Client ID.
+
+The app requests the `drive.file` scope only, meaning it can see or edit just the one
+backup file it creates for itself (`farm-fleet-expenses-backup.json`) — never the rest of
+anyone's Drive. Because the OAuth consent screen for a new Cloud project starts in
+"Testing" mode, Google will show an "unverified app" warning the user has to click through
+until the project is published/verified; that's expected for a small internal tool.

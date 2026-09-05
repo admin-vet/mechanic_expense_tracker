@@ -52,6 +52,9 @@
     analyticsMode: 'vendor', anYearA: null, anYearB: null, anSearch: '', anSort: 'biggestIncrease', anCrossVendor: '', anCrossEquipment: '',
 
     showBackupBanner: false, lastBackupAt: null,
+
+    driveClientId: '', driveClientIdDraft: '', driveFileId: '', driveLastBackupAt: null,
+    driveConnected: false, driveBusy: false, driveMessage: '',
   };
 
   // ---------------------------------------------------------------- local data store
@@ -90,6 +93,30 @@
         settingsPassword: state.settingsPassword,
       }));
     } catch (e) { /* storage unavailable — data stays in memory for this session */ }
+  }
+
+  const DRIVE_KEY = 'farmFleetExpenses_drive_v1';
+
+  function persistDriveConfig() {
+    try {
+      localStorage.setItem(DRIVE_KEY, JSON.stringify({
+        clientId: state.driveClientId,
+        fileId: state.driveFileId,
+        lastBackupAt: state.driveLastBackupAt,
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function loadDriveConfig() {
+    let raw = null;
+    try { raw = localStorage.getItem(DRIVE_KEY); } catch (e) { /* ignore */ }
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      state.driveClientId = data.clientId || '';
+      state.driveFileId = data.fileId || '';
+      state.driveLastBackupAt = data.lastBackupAt || null;
+    } catch (e) { /* ignore */ }
   }
 
   function loadDB() {
@@ -269,6 +296,16 @@
   // ---------------------------------------------------------------- utils
 
   function todayIso() { return new Date().toISOString().slice(0, 10); }
+  function buildBackupPayload() {
+    return {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      categories: state.categories,
+      suppliers: state.suppliers,
+      equipment: state.equipment,
+      invoices: state.invoices,
+    };
+  }
   function fmt(n) { return '$' + (parseFloat(n) || 0).toFixed(2); }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1236,6 +1273,39 @@
     `;
   }
 
+  function renderDriveBackupSection() {
+    if (!state.driveClientId) {
+      return `
+        <div class="card" style="padding:16px 20px;">
+          <div class="card-title" style="margin-bottom:8px;">Google Drive backup</div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;margin-bottom:14px;">
+            One-time setup, done once per site: create an OAuth Client ID (Web application) at
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
+            enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
+            <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
+            The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="flex:1;min-width:280px;"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
+            <button class="btn btn-secondary" data-action="saveDriveClientId" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save</button>
+          </div>
+        </div>
+      `;
+    }
+    const isError = /failed|expired|Add your/i.test(state.driveMessage || '');
+    return `
+      <div class="card" style="padding:16px 20px;">
+        <div class="card-title" style="margin-bottom:8px;">Google Drive backup</div>
+        <div style="margin-bottom:12px;">Last Drive backup: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Backing up…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
+          <button class="btn btn-ghost" data-action="disconnectDrive">Forget Client ID</button>
+        </div>
+        ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
+      </div>
+    `;
+  }
+
   function renderSettings() {
     const eqRows = [...state.equipment].sort((a, b) => alphaSort(a.name, b.name));
     const catBody = `
@@ -1316,10 +1386,11 @@
         ${collapseSection('equipment', 'Equipment', `<button class="btn btn-secondary" data-action="openAddEquipmentModal" style="width:150px;">+ Add equipment</button>`, eqBody, state.equipmentSectionExpanded)}
         ${collapseSection('suppliers', 'Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal" style="width:150px;">+ Add supplier</button>`, supBody, state.suppliersExpanded)}
         ${collapseSection('backup', 'Backup', `<button class="btn btn-primary" data-action="backupNow">Back up now</button>`, `
-          <div class="card" style="padding:16px 20px;">
-            <div style="margin-bottom:8px;">Last backup: <strong>${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</strong></div>
+          <div class="card" style="padding:16px 20px;margin-bottom:16px;">
+            <div style="margin-bottom:8px;">Last local backup: <strong>${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</strong></div>
             <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything on this device — every category, equipment record, expense, and supplier. This browser is the only copy of your data, so back up regularly and store the file somewhere safe.</div>
           </div>
+          ${renderDriveBackupSection()}
         `, state.backupExpanded)}
       </div>
     `;
@@ -1531,14 +1602,7 @@
     },
     backupNow() {
       try {
-        const payload = {
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          categories: state.categories,
-          suppliers: state.suppliers,
-          equipment: state.equipment,
-          invoices: state.invoices,
-        };
+        const payload = buildBackupPayload();
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1557,6 +1621,50 @@
     },
     dismissBackupBanner() { state.showBackupBanner = false; render(); },
     dismissError() { state.loadError = ''; render(); },
+
+    setDriveClientIdDraft(e) { state.driveClientIdDraft = e.target.value; render(); },
+    saveDriveClientId() {
+      const id = state.driveClientIdDraft.trim();
+      if (!id) return;
+      state.driveClientId = id;
+      state.driveClientIdDraft = '';
+      state.driveConnected = false;
+      state.driveFileId = '';
+      state.driveMessage = '';
+      persistDriveConfig();
+      render();
+    },
+    disconnectDrive() {
+      Drive.reset();
+      state.driveClientId = '';
+      state.driveFileId = '';
+      state.driveConnected = false;
+      state.driveMessage = '';
+      persistDriveConfig();
+      render();
+    },
+    async driveBackupNow() {
+      if (!state.driveClientId) { state.driveMessage = 'Add your Google OAuth Client ID first.'; render(); return; }
+      state.driveBusy = true;
+      state.driveMessage = '';
+      render();
+      try {
+        const payload = buildBackupPayload();
+        const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, !state.driveConnected);
+        state.driveFileId = fileId;
+        state.driveConnected = true;
+        state.driveLastBackupAt = new Date().toISOString();
+        state.driveMessage = 'Backed up to Google Drive.';
+        persistDriveConfig();
+      } catch (err) {
+        state.driveConnected = false;
+        state.driveMessage = err.message === 'UNAUTHORIZED'
+          ? 'Google Drive access expired or was denied — try again to reconnect.'
+          : ('Backup failed: ' + err.message);
+      }
+      state.driveBusy = false;
+      render();
+    },
 
     setDashboardYear(e) { state.dashboardYear = parseInt(e.target.value, 10); render(); },
     goUploadInvoice() { state.view = 'upload'; state.addExpenseMode = 'upload'; render(); },
@@ -1910,6 +2018,7 @@
 
   function init() {
     loadDB();
+    loadDriveConfig();
     checkBackupBanner();
     state.loading = false;
     render();
