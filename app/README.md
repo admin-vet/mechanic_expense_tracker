@@ -1,23 +1,43 @@
 # Farm Fleet Expenses
 
-A shared expense tracker for a farm mechanic shop: upload invoices (parsed automatically,
-no AI/API calls), or enter expenses by hand, assign them to a piece of equipment, and see
-per-equipment history, yearly totals, and year-over-year reporting. Multiple mechanics can
-sign in and see the same shared data.
+An expense tracker for a farm mechanic shop: upload invoices (parsed automatically, no
+AI/API calls), or enter expenses by hand, assign them to a piece of equipment, and see
+per-equipment history, yearly totals, and year-over-year reporting.
 
 This is a from-scratch production implementation of the `Farm Fleet Expenses` design
 prototype exported from Claude Design (see `../README.md`, `../chats/`, `../project/` at the
 repo root for the original design source and the conversation history that shaped it).
 
-## Stack
+## Two ways to run this
 
-- **Frontend**: plain HTML/CSS/JS, no build step (`public/`).
-- **Backend**: Node.js + Express, session-based auth with bcrypt password hashing
-  (`server/`).
-- **Database**: SQLite via Node's built-in `node:sqlite` module — a single file
-  (`server/data.sqlite`), no separate database server or account to set up.
+**1. Static, on GitHub Pages — the live version.** `app/public/` is a complete,
+self-contained app: plain HTML/CSS/JS, no build step, no server. It stores everything
+(equipment, categories, suppliers, expenses) in the browser's `localStorage`. A GitHub
+Actions workflow (`.github/workflows/pages.yml`) publishes that folder to GitHub Pages
+on every push to `main`, at `https://<owner>.github.io/<repo>/`.
 
-## Running it
+  Because it's static, **there's no real login and no shared data across devices** —
+  each browser has its own copy. A single settings password (default `1234`, changeable
+  in Settings) gates admin actions (add/delete equipment, categories, suppliers) the same
+  way the original design prototype did. Back up regularly (Settings → Backup, or the
+  disk icon in the header) since a cleared browser or a new device starts empty.
+
+**2. Optional real backend, self-hosted.** `server/` is a Node/Express + SQLite backend
+with real per-mechanic accounts (bcrypt-hashed passwords, sessions) and a shared
+database — every mechanic sees the same data from any device. This is what you'd want
+for actual multi-user, multi-device use; it just can't run on GitHub Pages, since Pages
+only serves static files. See "Running the optional backend" below.
+
+## Running the static version locally
+
+```bash
+cd app/public
+python3 -m http.server 8080   # or any static file server
+```
+
+Then open `http://localhost:8080`.
+
+## Running the optional backend
 
 ```bash
 cd server
@@ -25,50 +45,27 @@ npm install
 npm start
 ```
 
-Then open `http://localhost:3000`. On first run the server creates one admin account:
+Then open `http://localhost:3000`. On first run the server creates one admin account
+(`admin` / `admin123` — change it in Settings → Users right after logging in). Admins
+manage categories/equipment/suppliers/other accounts from Settings; every signed-in
+mechanic can log expenses, edit equipment, add notes, and update hour meters.
 
-- **username:** `admin`
-- **password:** `admin123`
+## Notes on the static version vs. the design prototype
 
-Change that password from Settings → Users right after logging in.
+The prototype (`../project/Farm Fleet Expenses.dc.html`) was itself a single-device,
+localStorage-only mockup with a shared settings password — the static build here matches
+that model closely, with one addition:
 
-## Accounts and permissions
-
-- **Admin** accounts can access Settings: manage categories, add/delete equipment, manage
-  suppliers, create other user accounts, and start a new year (clears all recorded
-  expenses but keeps equipment, categories, notes, and filters).
-- **Every signed-in user** (admin or not) can log expenses, edit equipment details
-  (rename, VIN, notes, filters, service intervals), add notes/reminders, and update hour
-  meters — matching the original design's "average users can't add or delete equipment,
-  but can do everything else."
-
-Admin creates every account from Settings → Users — there's no public sign-up page.
-
-## Notes on this implementation vs. the design prototype
-
-The prototype (in `../project/Farm Fleet Expenses.dc.html`) was a single-device,
-localStorage-only mockup with a shared password gate. Per the product decisions made when
-this was built out for real:
-
-- **Real accounts replace the shared password.** Each mechanic logs in with their own
-  username/password instead of a single settings password; expenses record who entered
-  them.
-- **A real shared backend replaces localStorage**, so every mechanic sees the same data.
-  The app fetches fresh data after every change (not a live socket), matching the
-  "on refresh/app open is fine" sync requirement from the design conversation.
 - **Invoice reading is fully in-house** — no AI/LLM call. PDFs are read via pdf.js's text
-  layer; photos/scans go through Tesseract OCR in the browser; both libraries load
-  on demand from a CDN, so **the server this runs on needs outbound internet access**
-  for that (and for the Google Fonts stylesheet — the UI falls back to the system font
-  if that's blocked).
+  layer; photos/scans go through Tesseract OCR in the browser; both libraries load on
+  demand from a CDN, so **the device viewing the page needs internet access** for that
+  (and for the Google Fonts stylesheet — the UI falls back to the system font if that's
+  blocked).
 - **The dashboard's decorative shop-photo banner was omitted** — it was a purely visual
-  placeholder in the prototype with no functional behavior, and there was no request to
-  wire up photo storage/uploads for it.
-- **Sessions are in-memory** (Express's default store) — restarting the server signs
-  everyone out. Fine for a small crew; swap in a persistent session store if that
-  becomes annoying.
+  placeholder in the prototype with no functional behavior.
 
-## Backing up
+## Backing up (static version)
 
 Settings → Backup (or the disk icon in the header) downloads a JSON snapshot of
-everything in the database — categories, equipment, suppliers, and every expense.
+everything in this browser's data — categories, equipment, suppliers, and every expense.
+Restore-from-file isn't wired up yet; treat the export as an emergency copy.

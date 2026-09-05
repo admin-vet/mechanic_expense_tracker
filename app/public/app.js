@@ -8,10 +8,8 @@
   const COLOR_SWATCHES = ['oklch(60% 0.19 0)', 'oklch(60% 0.19 29)', 'oklch(60% 0.19 55)', 'oklch(60% 0.19 80)', 'oklch(60% 0.19 110)', 'oklch(60% 0.19 140)', 'oklch(60% 0.19 165)', 'oklch(60% 0.19 200)', 'oklch(60% 0.19 230)', 'oklch(60% 0.19 260)', 'oklch(60% 0.19 290)', 'oklch(60% 0.19 320)', 'oklch(60% 0.19 345)', 'oklch(45% 0.03 0)'];
 
   let state = {
-    user: null,
-    categories: [], suppliers: [], equipment: [], invoices: [], users: [],
+    categories: [], suppliers: [], equipment: [], invoices: [],
     loading: true, loadError: '',
-    loginError: '',
 
     view: 'dashboard',
     dashboardYear: new Date().getFullYear(),
@@ -42,11 +40,10 @@
     confirmDeleteSupplierFor: null,
     supplierEditModalOpenFor: null, supplierEditDraft: '',
 
-    userAddModalOpen: false, userAddDraft: null,
-    confirmDeleteUserFor: null,
-    userPasswordModalFor: null, userPasswordDraft: '',
+    settingsUnlocked: false, settingsPasswordModalOpen: false, settingsPasswordInput: '', settingsPasswordError: false,
+    settingsPassword: '1234', changePasswordDraft: '',
 
-    categoriesExpanded: false, equipmentSectionExpanded: false, suppliersExpanded: false, usersExpanded: false, backupExpanded: false,
+    categoriesExpanded: false, equipmentSectionExpanded: false, suppliersExpanded: false, backupExpanded: false,
     newYearConfirming: false,
 
     year: null,
@@ -55,6 +52,218 @@
     analyticsMode: 'vendor', anYearA: null, anYearB: null, anSearch: '', anSort: 'biggestIncrease', anCrossVendor: '', anCrossEquipment: '',
 
     showBackupBanner: false, lastBackupAt: null,
+  };
+
+  // ---------------------------------------------------------------- local data store
+  // Everything lives in this browser's localStorage — no server, no accounts.
+  // That's what lets the app run entirely as static files (e.g. GitHub Pages).
+
+  const DB_KEY = 'farmFleetExpenses_db_v1';
+  let nextId = 1;
+
+  function seedDefaults() {
+    state.categories = [
+      { id: nextId++, name: 'Car / Truck', color: 'oklch(60% 0.19 260)' },
+      { id: nextId++, name: 'Combine', color: 'oklch(60% 0.19 29)' },
+      { id: nextId++, name: 'Tractor', color: 'oklch(60% 0.19 140)' },
+      { id: nextId++, name: 'Construction Equipment', color: 'oklch(60% 0.19 80)' },
+      { id: nextId++, name: 'Telehandler', color: 'oklch(60% 0.19 320)' },
+      { id: nextId++, name: 'Other', color: 'oklch(60% 0.19 200)' },
+    ];
+    state.equipment = ['Combine 1', 'Combine 2', 'Combine 3', 'Combine 4', '9430 Tractor', '7230R Tractor'].map((name) => ({
+      id: nextId++, name, category: 'Other', make: '', model: '', vin: '', info: '',
+      hourStart: '', hourEnd: '', filters: [], services: [], notes: [],
+    }));
+    state.suppliers = [];
+    state.invoices = [];
+    state.settingsPassword = '1234';
+  }
+
+  function persistDB() {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify({
+        nextId,
+        categories: state.categories,
+        suppliers: state.suppliers,
+        equipment: state.equipment,
+        invoices: state.invoices,
+        settingsPassword: state.settingsPassword,
+      }));
+    } catch (e) { /* storage unavailable — data stays in memory for this session */ }
+  }
+
+  function loadDB() {
+    let raw = null;
+    try { raw = localStorage.getItem(DB_KEY); } catch (e) { /* ignore */ }
+    if (!raw) { seedDefaults(); persistDB(); return; }
+    try {
+      const data = JSON.parse(raw);
+      state.categories = data.categories || [];
+      state.suppliers = data.suppliers || [];
+      state.equipment = data.equipment || [];
+      state.invoices = data.invoices || [];
+      state.settingsPassword = data.settingsPassword || '1234';
+      nextId = data.nextId || 1;
+    } catch (e) {
+      seedDefaults();
+      persistDB();
+    }
+  }
+
+  const Store = {
+    createCategory({ name, color }) {
+      const trimmed = (name || '').trim();
+      if (!trimmed) throw new Error('Name is required.');
+      if (state.categories.some((c) => c.name === trimmed)) throw new Error('That category already exists.');
+      state.categories.push({ id: nextId++, name: trimmed, color });
+      persistDB();
+    },
+    updateCategory(id, { name, color }) {
+      const trimmed = (name || '').trim();
+      if (!trimmed) throw new Error('Name is required.');
+      if (state.categories.some((c) => c.name === trimmed && c.id !== id)) throw new Error('That category already exists.');
+      const cat = state.categories.find((c) => c.id === id);
+      if (!cat) throw new Error('Not found.');
+      cat.name = trimmed;
+      cat.color = color;
+      persistDB();
+    },
+
+    createSupplier(name) {
+      const trimmed = (name || '').trim();
+      if (!trimmed) throw new Error('Name is required.');
+      if (state.suppliers.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) return;
+      state.suppliers.push({ id: nextId++, name: trimmed });
+      persistDB();
+    },
+    updateSupplier(id, name) {
+      const trimmed = (name || '').trim();
+      if (!trimmed) throw new Error('Name is required.');
+      const sup = state.suppliers.find((s) => s.id === id);
+      if (!sup) throw new Error('Not found.');
+      if (state.suppliers.some((s) => s.id !== id && s.name.toLowerCase() === trimmed.toLowerCase())) throw new Error('That supplier already exists.');
+      const oldName = sup.name;
+      sup.name = trimmed;
+      state.invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.vendor === oldName) li.vendor = trimmed; }));
+      persistDB();
+    },
+    deleteSupplier(id) {
+      state.suppliers = state.suppliers.filter((s) => s.id !== id);
+      persistDB();
+    },
+
+    createEquipment(payload) {
+      const name = (payload.name || '').trim();
+      if (!name) throw new Error('Name is required.');
+      if (state.equipment.some((e) => e.name === name)) throw new Error('That equipment already exists.');
+      state.equipment.push({
+        id: nextId++,
+        name,
+        category: payload.category || 'Other',
+        make: payload.make || '',
+        model: payload.model || '',
+        vin: payload.vin || '',
+        info: payload.info || '',
+        hourStart: '',
+        hourEnd: '',
+        filters: (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: nextId++, type: f.type || '', partNumber: f.partNumber || '' })),
+        services: (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' })),
+        notes: [],
+      });
+      persistDB();
+    },
+    updateEquipment(id, payload) {
+      const name = (payload.name || '').trim();
+      if (!name) throw new Error('Name is required.');
+      if (state.equipment.some((e) => e.name === name && e.id !== id)) throw new Error('That equipment already exists.');
+      const eq = state.equipment.find((e) => e.id === id);
+      if (!eq) throw new Error('Not found.');
+      eq.name = name;
+      eq.category = payload.category;
+      eq.make = payload.make || '';
+      eq.model = payload.model || '';
+      eq.vin = payload.vin || '';
+      eq.info = payload.info || '';
+      eq.filters = (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: f.id || nextId++, type: f.type || '', partNumber: f.partNumber || '' }));
+      eq.services = (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: s.id || nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' }));
+      persistDB();
+    },
+    deleteEquipment(id) {
+      state.equipment = state.equipment.filter((e) => e.id !== id);
+      state.invoices = state.invoices
+        .map((inv) => ({ ...inv, lineItems: inv.lineItems.filter((li) => li.equipmentId !== id) }))
+        .filter((inv) => inv.lineItems.length > 0);
+      persistDB();
+    },
+    updateHours(id, { start, end }) {
+      const eq = state.equipment.find((e) => e.id === id);
+      if (!eq) return;
+      if (start !== undefined) eq.hourStart = start;
+      if (end !== undefined) eq.hourEnd = end;
+      persistDB();
+    },
+    logService(equipmentId, serviceId) {
+      const eq = state.equipment.find((e) => e.id === equipmentId);
+      if (!eq) return;
+      const cur = parseFloat(eq.hourEnd);
+      if (isNaN(cur)) throw new Error('Set the current hour meter first.');
+      const sv = (eq.services || []).find((s) => s.id === serviceId);
+      if (sv) sv.lastHours = String(cur);
+      persistDB();
+    },
+
+    addNote(equipmentId, { text, date }) {
+      const trimmed = (text || '').trim();
+      if (!trimmed) throw new Error('Note text is required.');
+      const eq = state.equipment.find((e) => e.id === equipmentId);
+      if (!eq) return;
+      eq.notes = eq.notes || [];
+      eq.notes.push({ id: nextId++, text: trimmed, date: date || '' });
+      persistDB();
+    },
+    deleteNote(id) {
+      state.equipment.forEach((eq) => { eq.notes = (eq.notes || []).filter((n) => n.id !== id); });
+      persistDB();
+    },
+
+    saveInvoice({ fileName, lineItems }) {
+      const items = (lineItems || []).filter((it) => (it.part || '').trim() && it.equipmentId);
+      if (!items.length) throw new Error('At least one complete line item with an equipment assignment is required.');
+      state.invoices.push({
+        id: nextId++,
+        fileName: fileName || 'Manual entry',
+        savedAt: new Date().toISOString(),
+        lineItems: items.map((it) => ({
+          id: nextId++,
+          part: it.part || '',
+          qty: it.qty || '',
+          unitCost: it.unitCost || '',
+          totalCost: it.totalCost || '',
+          vendor: it.vendor || '',
+          date: it.date || '',
+          equipmentId: it.equipmentId,
+        })),
+      });
+      persistDB();
+    },
+    deleteLineItem(id) {
+      state.invoices = state.invoices
+        .map((inv) => ({ ...inv, lineItems: inv.lineItems.filter((li) => li.id !== id) }))
+        .filter((inv) => inv.lineItems.length > 0);
+      persistDB();
+    },
+
+    startNewYear() {
+      state.invoices = [];
+      persistDB();
+    },
+
+    changeSettingsPassword(newPassword) {
+      const trimmed = (newPassword || '').trim();
+      if (!trimmed) throw new Error('Password is required.');
+      state.settingsPassword = trimmed;
+      persistDB();
+    },
   };
 
   // ---------------------------------------------------------------- utils
@@ -80,7 +289,10 @@
   }
   function allLineItems() {
     const out = [];
-    state.invoices.forEach((inv) => inv.lineItems.forEach((li) => out.push({ ...li, invoiceId: inv.id, fileName: inv.fileName })));
+    state.invoices.forEach((inv) => inv.lineItems.forEach((li) => {
+      const eq = state.equipment.find((e) => e.id === li.equipmentId);
+      out.push({ ...li, invoiceId: inv.id, fileName: inv.fileName, equipment: eq ? eq.name : '' });
+    }));
     return out;
   }
   function getYears() {
@@ -150,7 +362,6 @@
 
   function renderRoot() {
     if (state.loading) return `<div style="padding:60px;text-align:center;color:var(--color-neutral-700);">Loading…</div>`;
-    if (!state.user) return renderLogin();
     return `
       <div style="min-height:100vh;display:flex;flex-direction:column;">
         ${renderNav()}
@@ -158,21 +369,6 @@
         ${state.loadError ? renderErrorBanner() : ''}
         ${renderView()}
         ${renderModals()}
-      </div>
-    `;
-  }
-
-  function renderLogin() {
-    return `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
-        <form data-action="login" data-on="submit" class="card" style="width:min(360px,100%);padding:32px;gap:16px;">
-          <div class="nav-brand" style="font-size:24px;">Veteran Equipment Expense</div>
-          <div class="field"><label>Username</label><input class="input" id="login-username" name="username" autocomplete="username" required></div>
-          <div class="field"><label>Password</label><input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required></div>
-          ${state.loginError ? `<div style="color:var(--color-accent-700);font-size:13px;">${esc(state.loginError)}</div>` : ''}
-          <button class="btn btn-primary btn-block" type="submit">Sign in</button>
-          <div class="card-meta">New install? Default admin login is <strong>admin</strong> / <strong>admin123</strong> — change the password in Settings after signing in.</div>
-        </form>
       </div>
     `;
   }
@@ -220,12 +416,9 @@
           <button class="btn ${v === 'analytics' ? 'btn-primary' : 'btn-ghost'}" data-action="setView" data-view="analytics" aria-label="Advanced reporting" title="Advanced reporting" style="padding:14px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
           </button>
-          ${state.user.isAdmin ? `
-          <button class="btn ${v === 'settings' ? 'btn-primary' : 'btn-ghost'}" data-action="setView" data-view="settings" aria-label="Settings" style="padding:14px;">
+          <button class="btn ${v === 'settings' ? 'btn-primary' : 'btn-ghost'}" data-action="settingsClick" aria-label="Settings" style="padding:14px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
-          </button>` : ''}
-          <span class="card-meta" style="margin-left:8px;white-space:nowrap;">${esc(state.user.username)}</span>
-          <button class="btn btn-ghost" data-action="logout">Sign out</button>
+          </button>
         </div>
       </div>
     `;
@@ -239,7 +432,7 @@
       case 'detail': return renderEquipmentDetail();
       case 'yearly': return renderYearly();
       case 'analytics': return renderAnalytics();
-      case 'settings': return state.user.isAdmin ? renderSettings() : renderDashboard();
+      case 'settings': return state.settingsUnlocked ? renderSettings() : renderDashboard();
       default: return renderDashboard();
     }
   }
@@ -512,7 +705,7 @@
               <div style="position:absolute;top:100%;right:0;margin-top:4px;background:var(--color-bg);border:2px solid var(--color-divider);z-index:5;min-width:200px;display:flex;flex-direction:column;">
                 <button class="btn btn-ghost" style="justify-content:flex-start;" data-action="startEditEquipment" data-id="${eq.id}">Edit</button>
                 <button class="btn btn-ghost" style="justify-content:flex-start;" data-action="openManualForm" data-id="${eq.id}">+ Add Expense</button>
-                ${state.user.isAdmin ? `<button class="btn btn-ghost" style="justify-content:flex-start;" data-action="confirmDeleteEquipment" data-id="${eq.id}">Delete</button>` : ''}
+                ${state.settingsUnlocked ? `<button class="btn btn-ghost" style="justify-content:flex-start;" data-action="confirmDeleteEquipment" data-id="${eq.id}">Delete</button>` : ''}
               </div>` : ''}
           </div>
         </div>
@@ -602,7 +795,7 @@
             <button class="btn btn-ghost" style="margin-bottom:8px;" data-action="backToCategories">← Categories</button>
             <h1 style="font-size:28px;margin:0;">${esc(cat)}</h1>
           </div>
-          ${state.user.isAdmin ? `<button class="btn btn-secondary" data-action="openAddEquipmentModal">+ Add equipment</button>` : ''}
+          ${state.settingsUnlocked ? `<button class="btn btn-secondary" data-action="openAddEquipmentModal">+ Add equipment</button>` : ''}
         </div>
         ${list.map(equipmentCardHtml).join('') || `<div class="text-muted">No equipment in this category yet.</div>`}
       </div>
@@ -1066,21 +1259,18 @@
           </div>` : ''}
       </div>
     `).join('');
-    const usersBody = (state.users || []).map((u) => `
-      <div class="card" style="margin-bottom:6px;padding:8px 14px;">
-        <div style="display:flex;flex-direction:row;align-items:center;gap:12px;">
-          <div class="card-title" style="font-size:15px;flex:1 1 auto;min-width:0;">${esc(u.username)}</div>
-          <span class="tag ${u.isAdmin ? 'tag-accent' : ''}">${u.isAdmin ? 'Admin' : 'Mechanic'}</span>
-          <button class="btn btn-ghost" data-action="toggleUserAdmin" data-id="${u.id}" data-value="${u.isAdmin ? '0' : '1'}">${u.isAdmin ? 'Remove admin' : 'Make admin'}</button>
-          <button class="btn btn-ghost" data-action="openUserPasswordModal" data-id="${u.id}">Reset password</button>
-          ${u.id !== state.user.id ? `<button class="btn btn-ghost" data-action="deleteUser" data-id="${u.id}">Delete</button>` : ''}
-        </div>
-      </div>
-    `).join('');
-
     return `
       <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
         <h1 style="font-size:28px;margin:0 0 24px;">Settings</h1>
+
+        <div class="card" style="margin-bottom:32px;">
+          <div class="card-title">Settings password</div>
+          <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Anyone who knows this password can open Settings. Change it here — it's stored only in this browser.</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="flex:1;max-width:240px;"><label>New password</label><input class="input" data-action="setChangePasswordDraft" data-on="input" value="${attr(state.changePasswordDraft)}"></div>
+            <button class="btn btn-secondary" data-action="saveChangePassword" ${!state.changePasswordDraft.trim() ? 'disabled' : ''}>Update password</button>
+          </div>
+        </div>
 
         <div class="card" style="margin-bottom:32px;">
           <div class="card-title">Start a new year</div>
@@ -1096,11 +1286,10 @@
         ${collapseSection('categories', 'Categories', `<button class="btn btn-secondary" data-action="openCategoryAddModal" style="width:150px;">+ Add category</button>`, catBody, state.categoriesExpanded)}
         ${collapseSection('equipment', 'Equipment', `<button class="btn btn-secondary" data-action="openAddEquipmentModal" style="width:150px;">+ Add equipment</button>`, eqBody, state.equipmentSectionExpanded)}
         ${collapseSection('suppliers', 'Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal" style="width:150px;">+ Add supplier</button>`, supBody, state.suppliersExpanded)}
-        ${collapseSection('users', 'Users', `<button class="btn btn-secondary" data-action="openUserAddModal" style="width:150px;">+ Add user</button>`, usersBody, state.usersExpanded)}
         ${collapseSection('backup', 'Backup', `<button class="btn btn-primary" data-action="backupNow">Back up now</button>`, `
           <div class="card" style="padding:16px 20px;">
             <div style="margin-bottom:8px;">Last backup: <strong>${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</strong></div>
-            <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently in the shared database — every category, equipment record, expense, and supplier. Store it somewhere safe.</div>
+            <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything on this device — every category, equipment record, expense, and supplier. This browser is the only copy of your data, so back up regularly and store the file somewhere safe.</div>
           </div>
         `, state.backupExpanded)}
       </div>
@@ -1227,26 +1416,15 @@
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="supplierEditCancel">Cancel</button><button class="btn btn-primary" data-action="saveSupplierEdit" ${!state.supplierEditDraft.trim() ? 'disabled' : ''}>Save</button></div>
         </div></div>`;
     }
-    if (state.userAddModalOpen) {
-      const d = state.userAddDraft;
+    if (state.settingsPasswordModalOpen) {
       html += `
         <div class="dialog-backdrop"><div class="dialog">
-          <div class="dialog-title">Add user</div>
-          <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
-            <div class="field"><label>Username</label><input class="input" data-action="userAddUpdate" data-field="username" data-on="input" value="${attr(d.username)}"></div>
-            <div class="field"><label>Temporary password</label><input class="input" data-action="userAddUpdate" data-field="password" data-on="input" value="${attr(d.password)}"></div>
-            <label class="radio"><input type="checkbox" data-action="userAddUpdate" data-field="isAdmin" data-on="change" ${d.isAdmin ? 'checked' : ''}><span class="dot"></span> Admin access</label>
-            ${state.loadError ? `<div style="color:var(--color-accent-700);font-size:13px;">${esc(state.loadError)}</div>` : ''}
+          <div class="dialog-title">Enter settings password</div>
+          <div class="dialog-body">
+            <div class="field"><label>Password</label><input class="input" type="password" data-action="settingsPasswordChange" data-on="input" value="${attr(state.settingsPasswordInput)}"></div>
+            ${state.settingsPasswordError ? `<div style="color:var(--color-accent-700);font-size:13px;">Incorrect password.</div>` : ''}
           </div>
-          <div class="dialog-actions"><button class="btn btn-ghost" data-action="userAddCancel">Cancel</button><button class="btn btn-primary" data-action="saveUserAdd" ${!d.username.trim() || !d.password.trim() ? 'disabled' : ''}>Add user</button></div>
-        </div></div>`;
-    }
-    if (state.userPasswordModalFor) {
-      html += `
-        <div class="dialog-backdrop"><div class="dialog">
-          <div class="dialog-title">Reset password</div>
-          <div class="dialog-body"><div class="field"><label>New password</label><input class="input" data-action="userPasswordUpdate" data-on="input" value="${attr(state.userPasswordDraft)}"></div></div>
-          <div class="dialog-actions"><button class="btn btn-ghost" data-action="userPasswordCancel">Cancel</button><button class="btn btn-primary" data-action="saveUserPassword" ${!state.userPasswordDraft.trim() ? 'disabled' : ''}>Save</button></div>
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="settingsPasswordCancel">Cancel</button><button class="btn btn-primary" data-action="settingsPasswordSubmit">Unlock</button></div>
         </div></div>`;
     }
     return html;
@@ -1254,25 +1432,10 @@
 
   // ---------------------------------------------------------------- data mutation helpers
 
-  async function refresh() {
+  function mutate(fn) {
     try {
-      const data = await Api.state();
-      state.categories = data.categories;
-      state.suppliers = data.suppliers;
-      state.equipment = data.equipment;
-      state.invoices = data.invoices;
-      if (data.users) state.users = data.users;
+      fn();
       state.loadError = '';
-    } catch (e) {
-      state.loadError = e.message;
-    }
-  }
-
-  async function mutate(fn) {
-    try {
-      await fn();
-      state.loadError = '';
-      await refresh();
     } catch (e) {
       state.loadError = e.message;
     }
@@ -1311,31 +1474,43 @@
       if (d.view !== 'history') state.selectedCategory = null;
       render();
     },
-    async login(e) {
-      e.preventDefault();
-      const username = document.getElementById('login-username').value;
-      const password = document.getElementById('login-password').value;
-      try {
-        const user = await Api.login(username, password);
-        state.user = user;
-        state.loginError = '';
-        await refresh();
-        checkBackupBanner();
-      } catch (err) {
-        state.loginError = err.message;
+    settingsClick() {
+      if (state.settingsUnlocked) { state.view = 'settings'; render(); return; }
+      state.settingsPasswordModalOpen = true;
+      state.settingsPasswordInput = '';
+      state.settingsPasswordError = false;
+      render();
+    },
+    settingsPasswordChange(e) { state.settingsPasswordInput = e.target.value; state.settingsPasswordError = false; render(); },
+    settingsPasswordCancel() { state.settingsPasswordModalOpen = false; render(); },
+    settingsPasswordSubmit() {
+      if (state.settingsPasswordInput === state.settingsPassword) {
+        state.settingsUnlocked = true;
+        state.settingsPasswordModalOpen = false;
+        state.view = 'settings';
+      } else {
+        state.settingsPasswordError = true;
       }
       render();
     },
-    async logout() {
-      await Api.logout();
-      state.user = null;
-      state.view = 'dashboard';
-      render();
+    setChangePasswordDraft(e) { state.changePasswordDraft = e.target.value; render(); },
+    saveChangePassword() {
+      mutate(() => {
+        Store.changeSettingsPassword(state.changePasswordDraft);
+        state.changePasswordDraft = '';
+      });
     },
-    async backupNow() {
+    backupNow() {
       try {
-        const res = await fetch('/api/export', { credentials: 'same-origin' });
-        const blob = await res.blob();
+        const payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          categories: state.categories,
+          suppliers: state.suppliers,
+          equipment: state.equipment,
+          invoices: state.invoices,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1394,17 +1569,17 @@
     },
     quickAddSupplierRow(e, d) {
       const row = state.standaloneRows[Number(d.index)];
-      mutate(() => Api.createSupplier(row.vendor));
+      mutate(() => Store.createSupplier(row.vendor));
     },
     quickAddSupplierManual() {
-      mutate(() => Api.createSupplier(state.manualForm.vendor));
+      mutate(() => Store.createSupplier(state.manualForm.vendor));
     },
     saveAllStandalone() {
       const validRows = state.standaloneRows.filter((r) => r.part.trim() && equipmentByName(r.equipment));
       if (!validRows.length) return;
       const lineItems = validRows.map((r) => ({ part: r.part, qty: r.qty, unitCost: r.unitCost, totalCost: r.totalCost, vendor: r.vendor, date: r.date, equipmentId: equipmentByName(r.equipment).id }));
-      mutate(async () => {
-        await Api.saveInvoice({ fileName: 'Manual entry', lineItems });
+      mutate(() => {
+        Store.saveInvoice({ fileName: 'Manual entry', lineItems });
         state.standaloneRows = [blankStandaloneRow()];
         state.view = 'history';
       });
@@ -1446,8 +1621,8 @@
     saveInvoice() {
       const p = state.pendingInvoice;
       const lineItems = p.lineItems.map((it) => ({ part: it.part, qty: it.qty, unitCost: it.unitCost, totalCost: it.totalCost, vendor: it.vendor, date: it.date, equipmentId: (equipmentByName(it.equipment) || {}).id }));
-      mutate(async () => {
-        await Api.saveInvoice({ fileName: p.fileName, lineItems });
+      mutate(() => {
+        Store.saveInvoice({ fileName: p.fileName, lineItems });
         state.pendingInvoice = null;
         state.view = 'history';
       });
@@ -1475,8 +1650,8 @@
       const eqId = Number(d.id);
       const f = state.manualForm;
       if (!f.part.trim()) return;
-      mutate(async () => {
-        await Api.saveInvoice({ fileName: 'Manual entry', lineItems: [{ ...f, equipmentId: eqId }] });
+      mutate(() => {
+        Store.saveInvoice({ fileName: 'Manual entry', lineItems: [{ ...f, equipmentId: eqId }] });
         state.manualFormOpenFor = null;
         state.manualForm = null;
       });
@@ -1485,8 +1660,8 @@
     cancelDeleteEquipment() { state.confirmDeleteFor = null; render(); },
     deleteEquipment(e, d) {
       const id = Number(d.id);
-      mutate(async () => {
-        await Api.deleteEquipment(id);
+      mutate(() => {
+        Store.deleteEquipment(id);
         state.confirmDeleteFor = null;
         if (state.detailEquipmentId === id) { state.detailEquipmentId = null; state.view = 'history'; }
       });
@@ -1494,21 +1669,21 @@
 
     openHourCalc() { state.hourCalcOpen = true; render(); },
     closeHourCalc() { state.hourCalcOpen = false; render(); },
-    setHourStart(e) { mutate(() => Api.updateHours(state.detailEquipmentId, { start: e.target.value })); },
-    setHourEnd(e) { mutate(() => Api.updateHours(state.detailEquipmentId, { end: e.target.value })); },
-    setCurrentHours(e) { mutate(() => Api.updateHours(state.detailEquipmentId, { end: e.target.value })); },
-    logService(e, d) { mutate(() => Api.logService(Number(d.eq), Number(d.sv))); },
+    setHourStart(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { start: e.target.value })); },
+    setHourEnd(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
+    setCurrentHours(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
+    logService(e, d) { mutate(() => Store.logService(Number(d.eq), Number(d.sv))); },
     setNoteText(e) { state.noteText = e.target.value; render(); },
     setNoteDate(e) { state.noteDate = e.target.value; render(); },
     addNote(e, d) {
       if (!state.noteText.trim()) return;
-      mutate(async () => {
-        await Api.addNote(Number(d.id), { text: state.noteText, date: state.noteDate });
+      mutate(() => {
+        Store.addNote(Number(d.id), { text: state.noteText, date: state.noteDate });
         state.noteText = ''; state.noteDate = '';
       });
     },
-    removeNote(e, d) { mutate(() => Api.deleteNote(Number(d.id))); },
-    removeLineItem(e, d) { mutate(() => Api.deleteLineItem(Number(d.id))); },
+    removeNote(e, d) { mutate(() => Store.deleteNote(Number(d.id))); },
+    removeLineItem(e, d) { mutate(() => Store.deleteLineItem(Number(d.id))); },
 
     startEditEquipment(e, d) {
       const eq = equipmentById(d.id);
@@ -1522,8 +1697,8 @@
       const id = state.editModalOpenFor;
       const payload = equipmentDraftPayload(state.editModalDraft);
       if (!payload.name) return;
-      mutate(async () => {
-        await Api.updateEquipment(id, payload);
+      mutate(() => {
+        Store.updateEquipment(id, payload);
         state.editModalOpenFor = null;
         state.editModalDraft = null;
       });
@@ -1538,8 +1713,8 @@
     saveAddModal() {
       const payload = equipmentDraftPayload(state.addModalDraft);
       if (!payload.name) return;
-      mutate(async () => {
-        await Api.createEquipment(payload);
+      mutate(() => {
+        Store.createEquipment(payload);
         state.addModalOpen = false;
         state.addModalDraft = null;
       });
@@ -1548,8 +1723,8 @@
     startNewYearClick() { state.newYearConfirming = true; render(); },
     cancelNewYear() { state.newYearConfirming = false; render(); },
     confirmNewYear() {
-      mutate(async () => {
-        await Api.startNewYear();
+      mutate(() => {
+        Store.startNewYear();
         state.newYearConfirming = false;
       });
     },
@@ -1559,8 +1734,8 @@
     saveCategoryAdd() {
       const d = state.categoryAddDraft;
       if (!d.name.trim()) return;
-      mutate(async () => {
-        await Api.createCategory({ name: d.name.trim(), color: d.color });
+      mutate(() => {
+        Store.createCategory({ name: d.name.trim(), color: d.color });
         state.categoryAddModalOpen = false;
         state.categoryAddDraft = null;
       });
@@ -1577,8 +1752,8 @@
       const id = state.categoryEditModalOpenFor;
       const name = state.categoryEditDraft.trim();
       if (!name) return;
-      mutate(async () => {
-        await Api.updateCategory(id, { name, color: state.categoryEditColorDraft });
+      mutate(() => {
+        Store.updateCategory(id, { name, color: state.categoryEditColorDraft });
         state.categoryEditModalOpenFor = null;
       });
     },
@@ -1588,8 +1763,8 @@
     supplierAddCancel() { state.supplierAddModalOpen = false; render(); },
     saveSupplierAdd() {
       if (!state.supplierAddDraft.trim()) return;
-      mutate(async () => {
-        await Api.createSupplier(state.supplierAddDraft);
+      mutate(() => {
+        Store.createSupplier(state.supplierAddDraft);
         state.supplierAddModalOpen = false;
       });
     },
@@ -1604,39 +1779,14 @@
     saveSupplierEdit() {
       const id = state.supplierEditModalOpenFor;
       if (!state.supplierEditDraft.trim()) return;
-      mutate(async () => {
-        await Api.updateSupplier(id, state.supplierEditDraft);
+      mutate(() => {
+        Store.updateSupplier(id, state.supplierEditDraft);
         state.supplierEditModalOpenFor = null;
       });
     },
     confirmDeleteSupplier(e, d) { state.confirmDeleteSupplierFor = Number(d.id); render(); },
     cancelDeleteSupplier() { state.confirmDeleteSupplierFor = null; render(); },
-    deleteSupplier(e, d) { mutate(async () => { await Api.deleteSupplier(Number(d.id)); state.confirmDeleteSupplierFor = null; }); },
-
-    openUserAddModal() { state.userAddModalOpen = true; state.userAddDraft = { username: '', password: '', isAdmin: false }; render(); },
-    userAddUpdate(e, d) { state.userAddDraft[d.field] = d.field === 'isAdmin' ? e.target.checked : e.target.value; render(); },
-    userAddCancel() { state.userAddModalOpen = false; render(); },
-    saveUserAdd() {
-      const d = state.userAddDraft;
-      if (!d.username.trim() || !d.password.trim()) return;
-      mutate(async () => {
-        await Api.createUser(d);
-        state.userAddModalOpen = false;
-      });
-    },
-    toggleUserAdmin(e, d) { mutate(() => Api.updateUser(Number(d.id), { isAdmin: d.value === '1' })); },
-    openUserPasswordModal(e, d) { state.userPasswordModalFor = Number(d.id); state.userPasswordDraft = ''; render(); },
-    userPasswordUpdate(e) { state.userPasswordDraft = e.target.value; render(); },
-    userPasswordCancel() { state.userPasswordModalFor = null; render(); },
-    saveUserPassword() {
-      const id = state.userPasswordModalFor;
-      if (!state.userPasswordDraft.trim()) return;
-      mutate(async () => {
-        await Api.updateUser(id, { password: state.userPasswordDraft });
-        state.userPasswordModalFor = null;
-      });
-    },
-    deleteUser(e, d) { mutate(() => Api.deleteUser(Number(d.id))); },
+    deleteSupplier(e, d) { mutate(() => { Store.deleteSupplier(Number(d.id)); state.confirmDeleteSupplierFor = null; }); },
 
     setYearlySelectedYear(e) { state.year = parseInt(e.target.value, 10); render(); },
     setYearlyMode(e, d) { state.yearlyGroupMode = d.mode; render(); },
@@ -1659,7 +1809,7 @@
 
   // Fix toggleSection's key mapping (equipment section uses a distinct state key).
   Actions.toggleSection = (e, d) => {
-    const map = { categories: 'categoriesExpanded', equipment: 'equipmentSectionExpanded', suppliers: 'suppliersExpanded', users: 'usersExpanded', backup: 'backupExpanded' };
+    const map = { categories: 'categoriesExpanded', equipment: 'equipmentSectionExpanded', suppliers: 'suppliersExpanded', backup: 'backupExpanded' };
     const key = map[d.key];
     if (key) state[key] = !state[key];
     render();
@@ -1729,15 +1879,9 @@
     state.showBackupBanner = staleDays >= 7;
   }
 
-  async function init() {
-    try {
-      const me = await Api.me();
-      state.user = me;
-      await refresh();
-      checkBackupBanner();
-    } catch (e) {
-      state.user = null;
-    }
+  function init() {
+    loadDB();
+    checkBackupBanner();
     state.loading = false;
     render();
   }
