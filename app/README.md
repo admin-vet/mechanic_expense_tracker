@@ -20,7 +20,8 @@ on every push to `main`, at `https://<owner>.github.io/<repo>/`.
   each browser has its own copy. A single settings password (default `1234`, changeable
   in Settings) gates admin actions (add/delete equipment, categories, suppliers) the same
   way the original design prototype did. Back up regularly (Settings → Backup, or the
-  disk icon in the header) since a cleared browser or a new device starts empty.
+  cloud icon in the header, which backs up to Google Drive once that's set up — see
+  "Google Drive backup" below) since a cleared browser or a new device starts empty.
 
 **2. Optional real backend, self-hosted.** `server/` is a Node/Express + SQLite backend
 with real per-mechanic accounts (bcrypt-hashed passwords, sessions) and a shared
@@ -67,9 +68,14 @@ that model closely, with one addition:
 
 ## Backing up (static version)
 
-Settings → Backup (or the disk icon in the header) downloads a JSON snapshot of
-everything in this browser's data — categories, equipment, suppliers, and every expense.
-Restore-from-file isn't wired up yet; treat the export as an emergency copy.
+Settings → Backup → "Back up now" downloads a JSON snapshot of everything in this
+browser's data — categories, equipment, suppliers, and every expense. Restore-from-file
+isn't wired up yet; treat the export as an emergency copy.
+
+The cloud icon in the header, and Settings → Backup → Google Drive backup, does the
+Drive version of the same thing (see below) — once that's connected, it also
+**auto-saves to Drive every 15 seconds** whenever there's something new to save, so you
+don't have to remember to click anything.
 
 ### Google Drive backup
 

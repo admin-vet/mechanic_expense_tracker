@@ -55,7 +55,7 @@
     driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
     driveAppId: '', driveAppIdDraft: '',
     driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
-    driveConnected: false, driveBusy: false, driveMessage: '',
+    driveConnected: false, driveBusy: false, driveMessage: '', driveToast: '',
   };
 
   // ---------------------------------------------------------------- local data store
@@ -83,7 +83,10 @@
     state.settingsPassword = '1234';
   }
 
+  let driveDirty = true; // true at startup so the first auto-save tick syncs whatever's already here
+
   function persistDB() {
+    driveDirty = true;
     try {
       localStorage.setItem(DB_KEY, JSON.stringify({
         nextId,
@@ -408,8 +411,17 @@
         ${renderNav()}
         ${state.showBackupBanner ? renderBackupBanner() : ''}
         ${state.loadError ? renderErrorBanner() : ''}
+        ${state.driveToast ? renderDriveToast() : ''}
         ${renderView()}
         ${renderModals()}
+      </div>
+    `;
+  }
+
+  function renderDriveToast() {
+    return `
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 32px;background:var(--color-neutral-800);color:var(--color-bg);font-size:14px;">
+        ${esc(state.driveToast)}
       </div>
     `;
   }
@@ -445,8 +457,8 @@
       <div class="nav" style="justify-content:space-between;padding:20px 44px;min-height:96px;">
         <div style="display:flex;align-items:center;gap:16px;">
           <div class="nav-brand">Veteran Equipment Expense</div>
-          <button data-action="backupNow" aria-label="Back up data" title="Back up data" style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
+          <button data-action="driveBackupNow" aria-label="Back up to Google Drive" title="${state.driveBusy ? 'Backing up…' : 'Back up to Google Drive'}" ${state.driveBusy ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
           </button>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
@@ -1303,6 +1315,7 @@
     return `
       <div class="card" style="padding:16px 20px;">
         <div class="card-title" style="margin-bottom:8px;">Google Drive backup</div>
+        <div class="card-meta" style="margin-bottom:12px;">Once connected, this also auto-saves to Drive every 15 seconds while there's something new to save — the cloud icon in the header does the same thing on demand.</div>
         <div style="margin-bottom:8px;">Last Drive backup: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1727,7 +1740,14 @@
       render();
     },
     async driveBackupNow() {
-      if (!state.driveClientId) { state.driveMessage = 'Add your Google OAuth Client ID first.'; render(); return; }
+      if (state.driveBusy) return;
+      if (!state.driveClientId) {
+        const msg = "Google Drive isn't set up yet — add a Client ID in Settings → Backup.";
+        state.driveMessage = 'Add your Google OAuth Client ID first.';
+        state.loadError = msg;
+        render();
+        return;
+      }
       state.driveBusy = true;
       state.driveMessage = '';
       render();
@@ -1738,12 +1758,17 @@
         state.driveConnected = true;
         state.driveLastBackupAt = new Date().toISOString();
         state.driveMessage = 'Backed up to Google Drive.';
+        state.loadError = '';
+        driveDirty = false;
         persistDriveConfig();
+        showDriveToast('Backed up to Google Drive.');
       } catch (err) {
         state.driveConnected = false;
-        state.driveMessage = err.message === 'UNAUTHORIZED'
+        const msg = err.message === 'UNAUTHORIZED'
           ? 'Google Drive access expired or was denied — try again to reconnect.'
           : ('Backup failed: ' + err.message);
+        state.driveMessage = msg;
+        state.loadError = msg;
       }
       state.driveBusy = false;
       render();
@@ -2084,12 +2109,40 @@
     state.showBackupBanner = staleDays >= 7;
   }
 
+  let driveToastTimer = null;
+  function showDriveToast(text) {
+    state.driveToast = text;
+    render();
+    if (driveToastTimer) clearTimeout(driveToastTimer);
+    driveToastTimer = setTimeout(() => { state.driveToast = ''; render(); }, 4000);
+  }
+
+  // Runs every 15s. Silent by design: auto-save should never pop a Google
+  // consent screen or nag the user with error banners on its own — it only
+  // ever does anything once a Client ID is configured and there's something
+  // new to save, and it says nothing at all if the silent token request fails
+  // (e.g. no prior interactive connect yet this session).
+  async function autoSaveDriveTick() {
+    if (!state.driveClientId || state.driveBusy || !driveDirty) return;
+    try {
+      const payload = buildBackupPayload();
+      const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, false, state.driveFolderId);
+      state.driveFileId = fileId;
+      state.driveConnected = true;
+      state.driveLastBackupAt = new Date().toISOString();
+      driveDirty = false;
+      persistDriveConfig();
+      render();
+    } catch (err) { /* silent — see comment above */ }
+  }
+
   function init() {
     loadDB();
     loadDriveConfig();
     checkBackupBanner();
     state.loading = false;
     render();
+    setInterval(autoSaveDriveTick, 15000);
   }
 
   init();
