@@ -154,6 +154,19 @@
     } catch (e) { /* ignore */ }
   }
 
+  // A saved backup folder can stop being reachable (deleted, moved, or picked
+  // before the project number was set up — see the comment in drive.js).
+  // Drive.* falls back to an unscoped search/create when that happens rather
+  // than failing outright; this drops the stale folder from state so the app
+  // stops retrying it, and leaves a note explaining why the folder changed.
+  function handleStaleDriveFolder() {
+    if (!Drive.consumeFolderIdInvalid()) return false;
+    state.driveFolderId = '';
+    state.driveFolderName = '';
+    state.driveMessage = 'The Drive folder saved here isn’t reachable anymore, so this switched to "My Drive" root. Pick a new folder below if you’d like.';
+    return true;
+  }
+
   // The connect gate: called once at startup (silently — no Google popup) and
   // again from the gate's "Connect Google Drive" button (interactively, which
   // can pop a Google sign-in/consent window). Either way it's the one place
@@ -163,6 +176,7 @@
   // first time this Drive account has used the app.
   async function loadOrInitFromDrive(interactive) {
     const meta = await Drive.checkBackup(state.driveClientId, state.driveFolderId, interactive);
+    handleStaleDriveFolder();
     if (meta && meta.id) {
       const data = await Drive.restore(state.driveClientId, meta.id, false);
       applyRestoredData(data);
@@ -171,6 +185,7 @@
       seedDefaults();
       const payload = buildBackupPayload();
       state.driveFileId = await Drive.backup(state.driveClientId, '', payload, false, state.driveFolderId);
+      handleStaleDriveFolder();
     }
     driveDirty = false;
     state.driveLastBackupAt = new Date().toISOString();
@@ -186,6 +201,7 @@
     try {
       if (!fileId) {
         const meta = await Drive.checkBackup(state.driveClientId, state.driveFolderId, false);
+        handleStaleDriveFolder();
         if (!meta || !meta.id) {
           state.driveMessage = 'No backup found in Google Drive yet.';
           state.driveBusy = false;
@@ -1850,7 +1866,10 @@
         const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, false, state.driveFolderId);
         state.driveFileId = fileId;
         state.driveLastBackupAt = new Date().toISOString();
-        state.driveMessage = 'Backed up to Google Drive.';
+        const staleFolder = handleStaleDriveFolder();
+        state.driveMessage = staleFolder
+          ? 'Backed up to Google Drive — the saved folder wasn’t reachable, so this went to "My Drive" root instead.'
+          : 'Backed up to Google Drive.';
         state.loadError = '';
         driveDirty = false;
         persistDriveConfig();
@@ -2220,6 +2239,7 @@
       const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, false, state.driveFolderId);
       state.driveFileId = fileId;
       state.driveLastBackupAt = new Date().toISOString();
+      handleStaleDriveFolder();
       driveDirty = false;
       persistDriveConfig();
       render();

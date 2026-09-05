@@ -54,7 +54,7 @@ const Drive = (() => {
     return meta ? meta.id : null;
   }
 
-  async function findBackupFileMeta(token, folderId) {
+  async function runFileQuery(token, folderId) {
     let q = `name='${FILE_NAME}' and trashed=false`;
     if (folderId) q += ` and '${folderId}' in parents`;
     const res = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&spaces=drive&fields=files(id,name,modifiedTime)', {
@@ -62,6 +62,31 @@ const Drive = (() => {
     });
     const data = await res.json();
     return (data.files && data.files[0]) || null;
+  }
+
+  // Drive 404s an entire files.list call if its `'<id>' in parents` clause
+  // references a folder the token can't see — which happens whenever a saved
+  // folder gets deleted, moved out of reach, or (the original cause of this
+  // class of bug) was picked before the Cloud project's app id/project number
+  // was configured, so the drive.file grant never actually covered it. Rather
+  // than let that permanently lock the app out, fall back to an unscoped
+  // search (which still finds the real backup file via its own per-file
+  // grant, wherever it lives) and flag it so the caller can drop the stale
+  // folder instead of tripping over it again next time.
+  let folderIdInvalidFlag = false;
+  async function findBackupFileMeta(token, folderId) {
+    if (!folderId) return runFileQuery(token, null);
+    try {
+      return await runFileQuery(token, folderId);
+    } catch (e) {
+      folderIdInvalidFlag = true;
+      return runFileQuery(token, null);
+    }
+  }
+  function consumeFolderIdInvalid() {
+    const v = folderIdInvalidFlag;
+    folderIdInvalidFlag = false;
+    return v;
   }
 
   async function downloadFile(token, fileId) {
@@ -114,6 +139,7 @@ const Drive = (() => {
       }
     }
     const foundId = await findBackupFile(token, folderId);
+    if (folderIdInvalidFlag) folderId = null; // stale folder — create at "My Drive" root instead
     if (foundId) { await updateBackupFile(token, foundId, content); return foundId; }
     return createBackupFile(token, content, folderId);
   }
@@ -184,5 +210,5 @@ const Drive = (() => {
 
   function reset() { tokenClient = null; tokenClientId = null; }
 
-  return { backup, checkBackup, restore, pickFolder, reset };
+  return { backup, checkBackup, restore, pickFolder, reset, consumeFolderIdInvalid };
 })();
