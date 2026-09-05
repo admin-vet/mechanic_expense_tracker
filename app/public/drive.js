@@ -96,7 +96,7 @@ const Drive = (() => {
     return res.json();
   }
 
-  async function createBackupFile(token, content, folderId) {
+  async function uploadNewFile(token, content, folderId) {
     const boundary = 'ffe_' + Math.random().toString(36).slice(2);
     const metadata = { name: FILE_NAME, mimeType: 'application/json' };
     if (folderId) metadata.parents = [folderId];
@@ -111,6 +111,22 @@ const Drive = (() => {
     });
     const data = await res.json();
     return data.id;
+  }
+
+  // Setting `parents: [folderId]` on the upload itself 404s just like the
+  // search does when that folder isn't reachable — and, in practice, this is
+  // the call that actually 404s for a stale folder (the search alone can
+  // come back merely empty rather than erroring). Same recovery as above:
+  // retry once with no parent (creating at "My Drive" root) and flag it.
+  async function createBackupFile(token, content, folderId) {
+    if (!folderId) return uploadNewFile(token, content, null);
+    try {
+      return await uploadNewFile(token, content, folderId);
+    } catch (e) {
+      if (e.message === 'UNAUTHORIZED') throw e;
+      folderIdInvalidFlag = true;
+      return uploadNewFile(token, content, null);
+    }
   }
 
   async function updateBackupFile(token, fileId, content) {
