@@ -88,10 +88,11 @@ per deployment:
    forks/deployments can each use their own Client ID.
 
 **Optional — to pick which Drive folder backups go to:** also create an **API key** on
-the same credentials page (restrict it to the "Google Picker API" and to this site's
-referrer), enable the **Google Picker API** in the Library, and paste the key into the
-same setup form. That unlocks a "Choose folder…" button in Settings that opens Google's
-own folder picker — the app never lists your Drive itself, it only receives the one
+the same credentials page. There's no separate "Picker API" to enable — under
+"API restrictions" choose **Google Drive API** (the one already enabled in step 3), and
+under "Website restrictions" add this site's origin. Paste the key into the same setup
+form. That unlocks a "Choose folder…" button in Settings that opens Google's own folder
+picker — the app never lists your Drive itself, it only receives the one
 folder you pick. Without an API key, backups go to the root of "My Drive".
 
 The app requests the `drive.file` scope only, meaning it can see or edit just the one

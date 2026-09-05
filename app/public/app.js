@@ -1288,11 +1288,12 @@
           <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;margin-bottom:14px;">
             One-time setup, done once per site: create an OAuth Client ID (Web application) at
             <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
-            enable the "Google Drive API" and "Google Picker API" for that project, and under "Authorized JavaScript origins" add
+            enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
             <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
             The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
-            To pick which folder that file lands in, also create an <strong>API key</strong> on the same credentials page (restrict it to
-            the Google Picker API and this site) and paste it below too — optional, otherwise backups go to the root of "My Drive".
+            To pick which folder that file lands in, also create an <strong>API key</strong> on the same credentials page — under
+            "API restrictions" choose "Google Drive API" (there's no separate Picker API to enable), and under
+            "Website restrictions" add this site — and paste it below too. Optional: without it, backups go to the root of "My Drive".
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div class="field"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
