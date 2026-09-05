@@ -1,0 +1,2637 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/modernist-2ba2199f-0ce6-46ae-93b7-1ae4bfe0c4b4/styles.css">
+  <script src="_ds/modernist-2ba2199f-0ce6-46ae-93b7-1ae4bfe0c4b4/_ds_bundle.js"></script>
+  <script src="./image-slot.js"></script>
+  <style>
+    body { margin: 0; background: var(--color-bg); }
+    table.et-table th, table.et-table td { padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--color-divider); vertical-align: middle; }
+    table.et-table th { font-family: var(--font-heading); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-neutral-700); }
+    .card, .dialog, .input, textarea.input, select.input { border-radius: 12px !important; }
+    .dialog-backdrop { z-index: 100; isolation: isolate; overflow-y: auto; align-content: center; }
+    .dialog { max-height: calc(100vh - 48px); overflow-y: auto; }
+    .btn, button.card { border-radius: 8px !important; }
+    .tag { border-radius: 999px !important; }
+    [style*="border:2px"] { border-radius: 12px; }
+    [style*="border-radius:50%"] { border-radius: 50% !important; }
+  </style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;font-family:var(--font-body);color:var(--color-text);">
+  <datalist id="supplierList">
+    <sc-for list="{{ supplierOptions }}" as="sup" hint-placeholder-count="0">
+      <option value="{{ sup }}"></option>
+    </sc-for>
+  </datalist>
+  <div class="nav" style="display:flex;align-items:center;justify-content:space-between;padding:20px 44px;min-height:96px;border-bottom:2px solid var(--color-divider);">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="nav-brand" style="font-size:30px;letter-spacing:-0.01em;">Veteran Equipment Expense</div>
+      <button onClick="{{ onBackupNow }}" aria-label="Back up data" title="Back up data" style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;" style-hover="{color:'var(--color-accent)'}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
+      </button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="{{ dashboardBtnClass }}" onClick="{{ setViewDashboard }}" style="font-size:17px;padding:14px 22px;">Dashboard</button>
+      <button class="{{ uploadBtnClass }}" onClick="{{ setViewUpload }}" style="font-size:17px;padding:14px 22px;">Expense</button>
+      <button class="{{ historyBtnClass }}" onClick="{{ setViewHistory }}" style="font-size:15px;padding:14px 18px;">Equipment</button>
+      <button class="{{ yearlyBtnClass }}" onClick="{{ setViewYearly }}" style="font-size:15px;padding:14px 18px;">Reports</button>
+      <button class="{{ analyticsBtnClass }}" onClick="{{ setViewAnalytics }}" aria-label="Advanced reporting" title="Advanced reporting" style="padding:14px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+      </button>
+      <button class="{{ settingsBtnClass }}" onClick="{{ onSettingsClick }}" aria-label="Settings" style="padding:14px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <sc-if value="{{ showBackupBanner }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--color-accent-100);border-bottom:2px solid var(--color-accent);">
+      <div style="font-size:14px;">{{ backupBannerText }}</div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-primary" onClick="{{ onBackupNow }}">Back up now</button>
+        <button class="btn btn-ghost" onClick="{{ onDismissBackupBanner }}">Not now</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+    <div style="position:relative;height:220px;overflow:hidden;flex-shrink:0;">
+      <image-slot id="dashboardBanner" shape="rect" placeholder="Drop a shop photo — wrenches, tools, or the bay" style="width:100%;height:100%;"></image-slot>
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(32,30,29,0.55) 0%, rgba(32,30,29,0.75) 100%);pointer-events:none;"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 32px 24px;pointer-events:none;">
+        <div style="max-width:1000px;width:100%;margin:0 auto;display:flex;justify-content:space-between;align-items:center;">
+          <h1 style="font-family:var(--font-heading);font-size:56px;margin:0;color:#fff;">{{ dashboardYear }}</h1>
+          <select class="input" style="width:110px;pointer-events:auto;" value="{{ dashboardYearVal }}" onChange="{{ onDashboardYearChange }}">
+            <sc-for list="{{ years }}" as="y">
+              <option value="{{ y.value }}">{{ y.label }}</option>
+            </sc-for>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="padding:40px 32px;max-width:1000px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 24px;">
+        <button class="btn btn-primary" onClick="{{ goUploadInvoice }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5"></path><path d="M12 3v12"></path></svg>
+          Upload invoice
+        </button>
+        <button class="btn btn-secondary" onClick="{{ goManualExpense }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          Add manual expense
+        </button>
+      </div>
+      <div class="card" style="margin:0 0 24px;">
+        <div class="card-kicker">Total fleet expenses, {{ dashboardYear }}</div>
+        <div style="font-family:var(--font-heading);font-size:48px;">{{ dashboardTotalFormatted }}</div>
+      </div>
+      <div class="card-title" style="margin-bottom:12px;">Top 5 Equipment by Expense&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Expense Category Breakdown<br>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
+        <table class="table et-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th>#</th><th>Equipment</th><th style="text-align:right;">Total</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ dashboardTopRows }}" as="row" hint-placeholder-count="5">
+              <tr>
+                <td>{{ row.rank }}</td>
+                <td>{{ row.name }}</td>
+                <td style="text-align:right;font-family:var(--font-heading);">{{ row.totalFormatted }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+
+        <div style="display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:center;height:100%;">
+          <div style="position:relative;width:220px;height:220px;flex-shrink:0;">
+            <div onMouseMove="{{ onPieMove }}" onMouseLeave="{{ onPieLeave }}" style="width:220px;height:220px;border-radius:50%;background:{{ categoryPieGradient }};cursor:default;"></div>
+            <sc-if value="{{ pieTip }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:{{ pieTipLeft }};top:{{ pieTipTop }};transform:translate(-50%,-100%);pointer-events:none;background:var(--color-text);color:var(--color-bg);padding:8px 10px;white-space:nowrap;z-index:5;box-shadow:var(--shadow-md);">
+                <div style="font-family:var(--font-heading);font-size:13px;letter-spacing:0.04em;text-transform:uppercase;">{{ pieTipName }}</div>
+                <div style="font-size:13px;margin-top:2px;">{{ pieTipTotal }} · {{ pieTipPct }}</div>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ categoryPieLegend }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:14px;height:14px;border-radius:4px;background:{{ c.color }};flex-shrink:0;"></div>
+                <div style="min-width:140px;">{{ c.name }}</div>
+                <div style="font-family:var(--font-heading);">{{ c.totalFormatted }}</div>
+                <div style="color:var(--color-neutral-700);font-size:13px;">({{ c.pctLabel }})</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <h1 style="font-family:var(--font-heading);font-size:28px;margin:0 0 8px;">Expenses</h1>
+      <p style="color:var(--color-neutral-700);margin:0 0 20px;max-width:640px;">Upload an invoice to extract line items automatically, enter a single expense by hand, or browse everything you've logged.</p>
+
+      <div style="display:flex;gap:8px;margin-bottom:28px;">
+        <button class="{{ addModeUploadBtnClass }}" onClick="{{ setAddModeUpload }}">Upload Invoice</button>
+        <button class="{{ addModeManualBtnClass }}" onClick="{{ setAddModeManual }}">Manual Expense</button>
+        <button class="{{ addModeAllBtnClass }}" onClick="{{ setAddModeAll }}">All Expenses</button>
+      </div>
+
+      <sc-if value="{{ addModeIsAll }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;">
+          <div class="field" style="flex:1;min-width:280px;"><label>Search</label>
+            <input class="input" style="width:100%;" placeholder="Part, vendor, equipment, or date…" value="{{ allExpSearch }}" onChange="{{ onAllExpSearchChange }}">
+          </div>
+          <div class="field" style="width:200px;"><label>Sort by</label>
+            <select class="input" value="{{ allExpSort }}" onChange="{{ onAllExpSortChange }}">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="highest">Highest cost</option>
+              <option value="lowest">Lowest cost</option>
+            </select>
+          </div>
+          <div style="padding-bottom:8px;color:var(--color-neutral-700);font-size:13px;">{{ allExpCountLabel }} · {{ allExpTotalFormatted }}</div>
+        </div>
+
+        <table class="table et-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Equipment</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ allExpRows }}" as="li" hint-placeholder-count="6">
+              <tr>
+                <td style="white-space:nowrap;">{{ li.date }}</td>
+                <td>{{ li.part }}</td>
+                <td>{{ li.vendor }}</td>
+                <td>{{ li.equipment }}</td>
+                <td style="text-align:right;">{{ li.qty }}</td>
+                <td style="text-align:right;font-family:var(--font-heading);">{{ li.totalFormatted }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ allExpNoRows }}" hint-placeholder-val="{{ false }}">
+          <div style="color:var(--color-neutral-700);margin-top:16px;">{{ allExpEmptyText }}</div>
+        </sc-if>
+      </sc-if>
+
+      <datalist id="equipmentDatalist">
+        <sc-for list="{{ equipmentOptions }}" as="opt">
+          <option value="{{ opt.value }}"></option>
+        </sc-for>
+      </datalist>
+
+      <sc-if value="{{ addModeIsManual }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:20px;border:2px solid var(--color-divider);max-width:1200px;">
+          <sc-for list="{{ standaloneRows }}" as="row" hint-placeholder-count="2">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-bottom:12px;border-bottom:1px solid var(--color-divider);">
+              <div class="field" style="flex:2;min-width:320px;"><label>Part</label><input class="input" style="width:100%;" value="{{ row.part }}" onChange="{{ row.onPartChange }}"></div>
+              <div class="field"><label>Qty</label><input class="input" style="width:70px" type="number" value="{{ row.qty }}" onChange="{{ row.onQtyChange }}"></div>
+              <div class="field"><label>Unit&nbsp;Cost</label><input class="input" style="width:100px" type="number" value="{{ row.unitCost }}" onChange="{{ row.onUnitCostChange }}"></div>
+              <div class="field"><label>Total&nbsp;Cost</label><input class="input" style="width:100px" type="number" value="{{ row.totalCost }}" onChange="{{ row.onTotalCostChange }}"></div>
+              <div class="field" style="flex:1;min-width:180px;">
+                <label>Vendor</label>
+                <div style="display:flex;gap:6px;">
+                  <input class="input" style="width:100%;" list="supplierList" value="{{ row.vendor }}" onChange="{{ row.onVendorChange }}">
+                  <sc-if value="{{ row.showAddSupplier }}" hint-placeholder-val="{{ false }}">
+                    <button class="btn btn-ghost" style="flex-shrink:0;white-space:nowrap;" onClick="{{ row.onQuickAddSupplier }}" title="Add to supplier list">+ New</button>
+                  </sc-if>
+                </div>
+              </div>
+              <div class="field"><label>Date</label><input class="input" style="width:150px" type="date" value="{{ row.date }}" onChange="{{ row.onDateChange }}"></div>
+              <div class="field" style="flex:1;min-width:240px;">
+                <label>Equipment</label>
+                <input class="input" style="width:100%;" list="equipmentDatalist" placeholder="Start typing…" value="{{ row.equipment }}" onChange="{{ row.onEquipmentChange }}">
+              </div>
+              <sc-if value="{{ row.canRemove }}" hint-placeholder-val="{{ false }}">
+                <button class="btn btn-ghost" onClick="{{ row.onRemove }}">Remove</button>
+              </sc-if>
+            </div>
+          </sc-for>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" onClick="{{ onAddStandaloneRow }}">+ Add another line</button>
+            <button class="btn btn-primary" disabled="{{ standaloneSaveDisabled }}" onClick="{{ onSaveAllStandalone }}">Save all expenses</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ addModeIsUpload }}" hint-placeholder-val="{{ true }}">
+      <sc-if value="{{ hasPending }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:360px;">
+          <div style="border:2px solid var(--color-divider);padding:12px;">
+            <sc-if value="{{ pendingIsImage }}" hint-placeholder-val="{{ false }}">
+              {{ pendingPreviewImg }}
+            </sc-if>
+            <sc-if value="{{ pendingIsPdf }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:40px 12px;text-align:center;color:var(--color-neutral-700);">PDF uploaded — preview not shown</div>
+            </sc-if>
+          </div>
+          <div style="margin-top:8px;font-size:13px;color:var(--color-neutral-700);">{{ pendingFileName }}</div>
+          <button class="btn btn-ghost btn-block" style="margin-top:16px;" onClick="{{ cancelPending }}">Cancel &amp; upload a different file</button>
+        </div>
+
+        <div style="margin-top:32px;">
+          <sc-if value="{{ extracting }}" hint-placeholder-val="{{ false }}">
+            <div class="tag tag-accent" style="margin-bottom:16px;">{{ extractStatusText }}</div>
+          </sc-if>
+          <sc-if value="{{ extractError }}" hint-placeholder-val="{{ false }}">
+            <div style="border:2px solid var(--color-accent);padding:12px;margin-bottom:16px;color:var(--color-accent-700);">{{ extractErrorText }}</div>
+          </sc-if>
+
+          <sc-if value="{{ hasPendingRows }}" hint-placeholder-val="{{ false }}">
+            <table class="table et-table" style="width:100%;border-collapse:collapse;">
+              <thead>
+                <tr><th>Part</th><th>Qty</th><th>Unit&nbsp;Cost</th><th>Total&nbsp;Cost</th><th>Vendor</th><th>Date</th><th>Equipment</th><th></th></tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ pendingRows }}" as="item" hint-placeholder-count="3">
+                  <tr>
+                    <td><input class="input" style="width:240px" value="{{ item.part }}" onChange="{{ item.onPartChange }}"></td>
+                    <td><input class="input" style="width:60px" type="number" value="{{ item.qty }}" onChange="{{ item.onQtyChange }}"></td>
+                    <td><input class="input" style="width:80px" type="number" value="{{ item.unitCost }}" onChange="{{ item.onUnitCostChange }}"></td>
+                    <td><input class="input" style="width:80px" type="number" value="{{ item.totalCost }}" onChange="{{ item.onTotalCostChange }}"></td>
+                    <td><input class="input" style="width:130px" list="supplierList" value="{{ item.vendor }}" onChange="{{ item.onVendorChange }}"></td>
+                    <td><input class="input" style="width:120px" type="date" value="{{ item.date }}" onChange="{{ item.onDateChange }}"></td>
+                    <td>
+                      <input class="input" style="width:160px" list="equipmentDatalist" placeholder="Start typing…" value="{{ item.equipment }}" onChange="{{ item.onEquipmentChange }}">
+                    </td>
+                    <td><button class="btn btn-ghost" onClick="{{ item.onRemove }}">Remove</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            <div style="display:flex;gap:12px;margin-top:20px;">
+              <button class="btn btn-secondary" onClick="{{ addRow }}">+ Add line item</button>
+              <button class="btn btn-primary" disabled="{{ saveDisabled }}" onClick="{{ saveInvoice }}">Save invoice</button>
+            </div>
+            <sc-if value="{{ saveDisabled }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:10px;font-size:13px;color:var(--color-neutral-700);">Every line needs an equipment assignment before saving.</div>
+            </sc-if>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ noPending }}" hint-placeholder-val="{{ true }}">
+        <label for="invoiceFile" style="display:flex;flex-direction:column;align-items:flex-start;gap:12px;border:2px dashed var(--color-divider);padding:48px;cursor:pointer;max-width:520px;">
+          <span class="btn btn-primary">Choose invoice file</span>
+          <span style="color:var(--color-neutral-700);font-size:14px;">JPG, PNG, or PDF</span>
+        </label>
+        <input id="invoiceFile" type="file" accept="image/*,application/pdf" style="display:none;" onChange="{{ onFileChange }}">
+      </sc-if>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <sc-if value="{{ noCategorySelected }}" hint-placeholder-val="{{ true }}">
+        <h1 style="font-family:var(--font-heading);font-size:28px;margin:0 0 16px;">Equipment List</h1>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:24px;">
+          <input class="input" style="width:100%;max-width:360px;" placeholder="Search by name, make, or model…" value="{{ equipmentSearch }}" onChange="{{ onEquipmentSearchChange }}">
+          <div style="display:flex;gap:8px;">
+            <button class="{{ categoriesBtnClass }}" onClick="{{ onShowCategories }}">By Category</button>
+            <button class="{{ allListBtnClass }}" onClick="{{ onShowAllList }}">All Equipment (A–Z)</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ searchActive }}" hint-placeholder-val="{{ false }}">
+          <sc-for list="{{ searchResults }}" as="grp" hint-placeholder-count="3">
+          <div class="card" style="margin-bottom:8px;padding:8px 14px;position:relative;">
+            <div style="display:flex;flex-direction:row;align-items:center;gap:16px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:{{ grp.categoryColor }};flex-shrink:0;"></div>
+              <div class="card-title" style="font-size:15px;flex:1 1 180px;min-width:0;">{{ grp.name }}</div>
+              <sc-if value="{{ grp.hasVin }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:12px;color:var(--color-neutral-700);flex:0 0 auto;white-space:nowrap;">{{ grp.vin }}</div>
+              </sc-if>
+              <div class="card-meta" style="flex:0 0 auto;white-space:nowrap;">{{ grp.countLabel }}</div>
+              <div style="font-family:var(--font-heading);font-size:16px;flex:0 0 auto;white-space:nowrap;">{{ grp.totalFormatted }}</div>
+              <div style="display:flex;gap:4px;flex:0 0 auto;">
+                <sc-for list="{{ grp.serviceDots }}" as="dot" hint-placeholder-count="0">
+                  <span title="{{ dot.name }}" style="width:10px;height:10px;background:{{ dot.color }};display:inline-block;"></span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative;">
+                <button class="btn btn-secondary" onClick="{{ grp.onView }}">View</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onToggleManage }}">Manage</button>
+                <sc-if value="{{ grp.manageOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:100%;right:0;margin-top:4px;background:var(--color-bg);border:2px solid var(--color-divider);z-index:5;min-width:200px;display:flex;flex-direction:column;">
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onStartEdit }}">Edit</button>
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onOpenForm }}">+ Add Expense</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onDelete }}">Delete</button>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+
+            <sc-if value="{{ grp.confirmingDelete }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="color:var(--color-accent-700);">Delete {{ grp.name }} and its {{ grp.countLabel }}? This can't be undone.</div>
+                <button class="btn btn-primary" onClick="{{ grp.onConfirmDelete }}">Delete equipment</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCancelDelete }}">Cancel</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ grp.formOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;padding:16px;border:2px solid var(--color-divider);">
+                <div class="field"><label>Part</label><input class="input" style="width:280px" value="{{ grp.form.part }}" onChange="{{ grp.form.onPartChange }}"></div>
+                <div class="field"><label>Qty</label><input class="input" style="width:60px" type="number" value="{{ grp.form.qty }}" onChange="{{ grp.form.onQtyChange }}"></div>
+                <div class="field"><label>Unit&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.unitCost }}" onChange="{{ grp.form.onUnitCostChange }}"></div>
+                <div class="field"><label>Total&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.totalCost }}" onChange="{{ grp.form.onTotalCostChange }}"></div>
+                <div class="field">
+                  <label>Vendor</label>
+                  <div style="display:flex;gap:6px;">
+                    <input class="input" style="width:130px" list="supplierList" value="{{ grp.form.vendor }}" onChange="{{ grp.form.onVendorChange }}">
+                    <sc-if value="{{ grp.form.showAddSupplier }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="flex-shrink:0;white-space:nowrap;" onClick="{{ grp.form.onQuickAddSupplier }}" title="Add to supplier list">+ New</button>
+                    </sc-if>
+                  </div>
+                </div>
+                <div class="field"><label>Date</label><input class="input" style="width:130px" type="date" value="{{ grp.form.date }}" onChange="{{ grp.form.onDateChange }}"></div>
+                <button class="btn btn-primary" disabled="{{ grp.form.saveDisabled }}" onClick="{{ grp.form.onSave }}">Save expense</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCloseForm }}">Cancel</button>
+              </div>
+            </sc-if>
+          </div>
+          </sc-for>
+          <sc-if value="{{ searchHasResults }}" hint-placeholder-val="{{ true }}">
+          </sc-if>
+          <sc-if value="{{ searchHasNoResults }}" hint-placeholder-val="{{ false }}">
+            <div style="color:var(--color-neutral-700);">No equipment matches "{{ equipmentSearch }}".</div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ showAllEquipmentList }}" hint-placeholder-val="{{ false }}">
+          <div>
+          <sc-for list="{{ allEquipmentList }}" as="grp" hint-placeholder-count="4">
+          <div class="card" style="margin-bottom:8px;padding:8px 14px;position:relative;">
+            <div style="display:flex;flex-direction:row;align-items:center;gap:16px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:{{ grp.categoryColor }};flex-shrink:0;"></div>
+              <div class="card-title" style="font-size:15px;flex:1 1 180px;min-width:0;">{{ grp.name }}</div>
+              <sc-if value="{{ grp.hasVin }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:12px;color:var(--color-neutral-700);flex:0 0 auto;white-space:nowrap;">{{ grp.vin }}</div>
+              </sc-if>
+              <div class="card-meta" style="flex:0 0 auto;white-space:nowrap;">{{ grp.countLabel }}</div>
+              <div style="font-family:var(--font-heading);font-size:16px;flex:0 0 auto;white-space:nowrap;">{{ grp.totalFormatted }}</div>
+              <div style="display:flex;gap:4px;flex:0 0 auto;">
+                <sc-for list="{{ grp.serviceDots }}" as="dot" hint-placeholder-count="0">
+                  <span title="{{ dot.name }}" style="width:10px;height:10px;background:{{ dot.color }};display:inline-block;"></span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative;">
+                <button class="btn btn-secondary" onClick="{{ grp.onView }}">View</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onToggleManage }}">Manage</button>
+                <sc-if value="{{ grp.manageOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:100%;right:0;margin-top:4px;background:var(--color-bg);border:2px solid var(--color-divider);z-index:5;min-width:200px;display:flex;flex-direction:column;">
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onStartEdit }}">Edit</button>
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onOpenForm }}">+ Add Expense</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onDelete }}">Delete</button>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+
+            <sc-if value="{{ grp.confirmingDelete }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="color:var(--color-accent-700);">Delete {{ grp.name }} and its {{ grp.countLabel }}? This can't be undone.</div>
+                <button class="btn btn-primary" onClick="{{ grp.onConfirmDelete }}">Delete equipment</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCancelDelete }}">Cancel</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ grp.formOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;padding:16px;border:2px solid var(--color-divider);">
+                <div class="field"><label>Part</label><input class="input" style="width:280px" value="{{ grp.form.part }}" onChange="{{ grp.form.onPartChange }}"></div>
+                <div class="field"><label>Qty</label><input class="input" style="width:60px" type="number" value="{{ grp.form.qty }}" onChange="{{ grp.form.onQtyChange }}"></div>
+                <div class="field"><label>Unit&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.unitCost }}" onChange="{{ grp.form.onUnitCostChange }}"></div>
+                <div class="field"><label>Total&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.totalCost }}" onChange="{{ grp.form.onTotalCostChange }}"></div>
+                <div class="field">
+                  <label>Vendor</label>
+                  <div style="display:flex;gap:6px;">
+                    <input class="input" style="width:130px" list="supplierList" value="{{ grp.form.vendor }}" onChange="{{ grp.form.onVendorChange }}">
+                    <sc-if value="{{ grp.form.showAddSupplier }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="flex-shrink:0;white-space:nowrap;" onClick="{{ grp.form.onQuickAddSupplier }}" title="Add to supplier list">+ New</button>
+                    </sc-if>
+                  </div>
+                </div>
+                <div class="field"><label>Date</label><input class="input" style="width:130px" type="date" value="{{ grp.form.date }}" onChange="{{ grp.form.onDateChange }}"></div>
+                <button class="btn btn-primary" disabled="{{ grp.form.saveDisabled }}" onClick="{{ grp.form.onSave }}">Save expense</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCloseForm }}">Cancel</button>
+              </div>
+            </sc-if>
+          </div>
+          </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showCategoryTiles }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:16px;">
+          <sc-for list="{{ categoryTiles }}" as="cat" hint-placeholder-count="4">
+            <button class="card" style="text-align:left;cursor:pointer;border:2px solid var(--color-divider);background:var(--color-bg);width:100%;" onClick="{{ cat.onSelect }}">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:12px;height:12px;border-radius:50%;background:{{ cat.color }};flex-shrink:0;"></div>
+                <div class="card-title">{{ cat.name }}</div>
+              </div>
+              <div class="card-meta">{{ cat.countLabel }}</div>
+            </button>
+          </sc-for>
+        </div>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ categorySelected }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:16px;">
+          <div>
+            <button class="btn btn-ghost" style="margin-bottom:8px;" onClick="{{ backToCategories }}">← Categories</button>
+            <h1 style="font-family:var(--font-heading);font-size:28px;margin:0;">{{ selectedCategory }}</h1>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-secondary" onClick="{{ openAddEquipmentModal }}">+ Add equipment</button>
+            </sc-if>
+          </div>
+        </div>
+        <sc-for list="{{ historyGroups }}" as="grp" hint-placeholder-count="4">
+          <div class="card" style="margin-bottom:8px;padding:8px 14px;position:relative;">
+            <div style="display:flex;flex-direction:row;align-items:center;gap:16px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:{{ grp.categoryColor }};flex-shrink:0;"></div>
+              <div class="card-title" style="font-size:15px;flex:1 1 180px;min-width:0;">{{ grp.name }}</div>
+              <sc-if value="{{ grp.hasVin }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:12px;color:var(--color-neutral-700);flex:0 0 auto;white-space:nowrap;">{{ grp.vin }}</div>
+              </sc-if>
+              <div class="card-meta" style="flex:0 0 auto;white-space:nowrap;">{{ grp.countLabel }}</div>
+              <div style="font-family:var(--font-heading);font-size:16px;flex:0 0 auto;white-space:nowrap;">{{ grp.totalFormatted }}</div>
+              <div style="display:flex;gap:4px;flex:0 0 auto;">
+                <sc-for list="{{ grp.serviceDots }}" as="dot" hint-placeholder-count="0">
+                  <span title="{{ dot.name }}" style="width:10px;height:10px;background:{{ dot.color }};display:inline-block;"></span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative;">
+                <button class="btn btn-secondary" onClick="{{ grp.onView }}">View</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onToggleManage }}">Manage</button>
+                <sc-if value="{{ grp.manageOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:100%;right:0;margin-top:4px;background:var(--color-bg);border:2px solid var(--color-divider);z-index:5;min-width:200px;display:flex;flex-direction:column;">
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onStartEdit }}">Edit</button>
+                    <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onOpenForm }}">+ Add Expense</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="justify-content:flex-start;" onClick="{{ grp.onDelete }}">Delete</button>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+
+            <sc-if value="{{ grp.confirmingDelete }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="color:var(--color-accent-700);">Delete {{ grp.name }} and its {{ grp.countLabel }}? This can't be undone.</div>
+                <button class="btn btn-primary" onClick="{{ grp.onConfirmDelete }}">Delete equipment</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCancelDelete }}">Cancel</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ grp.formOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;padding:16px;border:2px solid var(--color-divider);">
+                <div class="field"><label>Part</label><input class="input" style="width:280px" value="{{ grp.form.part }}" onChange="{{ grp.form.onPartChange }}"></div>
+                <div class="field"><label>Qty</label><input class="input" style="width:60px" type="number" value="{{ grp.form.qty }}" onChange="{{ grp.form.onQtyChange }}"></div>
+                <div class="field"><label>Unit&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.unitCost }}" onChange="{{ grp.form.onUnitCostChange }}"></div>
+                <div class="field"><label>Total&nbsp;Cost</label><input class="input" style="width:80px" type="number" value="{{ grp.form.totalCost }}" onChange="{{ grp.form.onTotalCostChange }}"></div>
+                <div class="field">
+                  <label>Vendor</label>
+                  <div style="display:flex;gap:6px;">
+                    <input class="input" style="width:130px" list="supplierList" value="{{ grp.form.vendor }}" onChange="{{ grp.form.onVendorChange }}">
+                    <sc-if value="{{ grp.form.showAddSupplier }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn btn-ghost" style="flex-shrink:0;white-space:nowrap;" onClick="{{ grp.form.onQuickAddSupplier }}" title="Add to supplier list">+ New</button>
+                    </sc-if>
+                  </div>
+                </div>
+                <div class="field"><label>Date</label><input class="input" style="width:130px" type="date" value="{{ grp.form.date }}" onChange="{{ grp.form.onDateChange }}"></div>
+                <button class="btn btn-primary" disabled="{{ grp.form.saveDisabled }}" onClick="{{ grp.form.onSave }}">Save expense</button>
+                <button class="btn btn-ghost" onClick="{{ grp.onCloseForm }}">Cancel</button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ categoryAddModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Add category</div>
+        <div class="dialog-body">
+          <div class="field"><label>Name</label><input class="input" value="{{ categoryAddModal.name }}" onChange="{{ categoryAddModal.onNameChange }}" placeholder="e.g. Sprayer"></div>
+          <div class="field">
+            <label>Color</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <sc-for list="{{ categoryAddModal.swatches }}" as="sw">
+                <button onClick="{{ sw.onSelect }}" style="width:32px;height:32px;border-radius:50%;background:{{ sw.color }};cursor:pointer;border:{{ sw.borderStyle }};"></button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ categoryAddModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ categoryAddModal.saveDisabled }}" onClick="{{ categoryAddModal.onSave }}">Add category</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ categoryEditModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Rename category</div>
+        <div class="dialog-body">
+          <div class="field"><label>Name</label><input class="input" value="{{ categoryEditModal.name }}" onChange="{{ categoryEditModal.onNameChange }}"></div>
+          <div class="field">
+            <label>Color</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <sc-for list="{{ categoryEditModal.swatches }}" as="sw">
+                <button onClick="{{ sw.onSelect }}" style="width:32px;height:32px;border-radius:50%;background:{{ sw.color }};cursor:pointer;border:{{ sw.borderStyle }};"></button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ categoryEditModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ categoryEditModal.saveDisabled }}" onClick="{{ categoryEditModal.onSave }}">Save</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hourCalcOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog" style="max-width:520px;">
+        <div class="dialog-title">Operating cost per hour</div>
+        <div class="dialog-body">
+          <div class="card-meta" style="margin-bottom:20px;">{{ detail.name }}</div>
+          <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field"><label>Starting hours</label><input class="input" style="width:150px;" type="number" step="0.1" placeholder="0" value="{{ detail.hourStart }}" onChange="{{ detail.onHourStartChange }}"></div>
+            <div class="field"><label>Ending hours</label><input class="input" style="width:150px;" type="number" step="0.1" placeholder="0" value="{{ detail.hourEnd }}" onChange="{{ detail.onHourEndChange }}"></div>
+          </div>
+          <div style="border-top:2px solid var(--color-divider);margin-top:20px;padding-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+            <div>
+              <div class="card-meta" style="margin-bottom:6px;">Hours run</div>
+              <div style="font-family:var(--font-heading);font-size:22px;">{{ detail.hoursRunLabel }}</div>
+            </div>
+            <div>
+              <div class="card-meta" style="margin-bottom:6px;">Total expense</div>
+              <div style="font-family:var(--font-heading);font-size:22px;">{{ detail.totalFormatted }}</div>
+            </div>
+            <div>
+              <div class="card-meta" style="margin-bottom:6px;">Cost per hour</div>
+              <div style="font-family:var(--font-heading);font-size:22px;color:var(--color-accent-700);">{{ detail.costPerHourLabel }}</div>
+            </div>
+          </div>
+          <sc-if value="{{ detail.hourWarning }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:16px;font-size:13px;color:var(--color-neutral-700);">{{ detail.hourWarningText }}</div>
+          </sc-if>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-primary" onClick="{{ onCloseHourCalc }}">Done</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ editModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog" style="max-width:900px;width:92vw;">
+        <div class="dialog-title">Edit equipment</div>
+        <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div class="field"><label>Name</label><input class="input" value="{{ editModal.name }}" onChange="{{ editModal.onNameChange }}"></div>
+          <div style="display:flex;gap:16px;">
+            <div class="field" style="flex:1;"><label>Make</label><input class="input" value="{{ editModal.make }}" onChange="{{ editModal.onMakeChange }}" placeholder="e.g. John Deere"></div>
+            <div class="field" style="flex:1;"><label>Model</label><input class="input" value="{{ editModal.model }}" onChange="{{ editModal.onModelChange }}" placeholder="e.g. 9430"></div>
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select class="input" value="{{ editModal.category }}" onChange="{{ editModal.onCategoryChange }}">
+              <sc-for list="{{ categoryOptions }}" as="c">
+                <option value="{{ c }}">{{ c }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div class="field"><label>VIN / Serial number</label><input class="input" value="{{ editModal.vin }}" onChange="{{ editModal.onVinChange }}"></div>
+          <div class="field"><label>Notes</label><textarea class="input" rows="4" value="{{ editModal.info }}" onChange="{{ editModal.onInfoChange }}"></textarea></div>
+          <div class="field">
+            <label>Filters</label>
+            <sc-for list="{{ editModal.filters }}" as="f" hint-placeholder-count="1">
+              <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Filter type (e.g. Air, Oil, Fuel)" value="{{ f.type }}" onChange="{{ f.onTypeChange }}">
+                <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Part number" value="{{ f.partNumber }}" onChange="{{ f.onPartNumberChange }}">
+                <button class="btn btn-ghost" onClick="{{ f.onRemove }}">Remove</button>
+              </div>
+            </sc-for>
+            <button class="btn btn-ghost" onClick="{{ editModal.onAddFilterRow }}">+ Add filter type</button>
+          </div>
+          <div class="field">
+            <label>Service intervals</label>
+            <div class="card-meta" style="margin-bottom:10px;">Name the service, how often it is due in hours, and the hour reading at the last change.</div>
+            <sc-for list="{{ editModal.services }}" as="sv" hint-placeholder-count="1">
+              <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                <input class="input" style="flex:1 1 auto;min-width:0;" placeholder="e.g. Engine oil" value="{{ sv.name }}" onChange="{{ sv.onNameChange }}">
+                <input class="input" style="width:150px;flex:0 0 auto;" type="number" step="1" placeholder="Every hrs" value="{{ sv.interval }}" onChange="{{ sv.onIntervalChange }}">
+                <input class="input" style="width:160px;flex:0 0 auto;" type="number" step="0.1" placeholder="Last at hrs" value="{{ sv.lastHours }}" onChange="{{ sv.onLastHoursChange }}">
+                <button class="btn btn-ghost" onClick="{{ sv.onRemove }}">Remove</button>
+              </div>
+            </sc-for>
+            <button class="btn btn-ghost" onClick="{{ editModal.onAddServiceRow }}">+ Add service interval</button>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ editModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ editModal.saveDisabled }}" onClick="{{ editModal.onSave }}">Save</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ supplierAddModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Add supplier</div>
+        <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div class="field"><label>Name</label><input class="input" value="{{ supplierAddModal.name }}" onChange="{{ supplierAddModal.onNameChange }}" placeholder="e.g. Ag Parts Co."></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ supplierAddModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ supplierAddModal.saveDisabled }}" onClick="{{ supplierAddModal.onSave }}">Add supplier</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ supplierEditModal }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Rename supplier</div>
+        <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div class="field"><label>Name</label><input class="input" value="{{ supplierEditModal.name }}" onChange="{{ supplierEditModal.onNameChange }}"></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ supplierEditModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ supplierEditModal.saveDisabled }}" onClick="{{ supplierEditModal.onSave }}">Save</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ addModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog" style="max-width:900px;width:92vw;">
+        <div class="dialog-title">Add equipment</div>
+        <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div class="field"><label>Name</label><input class="input" value="{{ addModal.name }}" onChange="{{ addModal.onNameChange }}" placeholder="e.g. Combine 5"></div>
+          <div style="display:flex;gap:16px;">
+            <div class="field" style="flex:1;"><label>Make</label><input class="input" value="{{ addModal.make }}" onChange="{{ addModal.onMakeChange }}" placeholder="e.g. John Deere"></div>
+            <div class="field" style="flex:1;"><label>Model</label><input class="input" value="{{ addModal.model }}" onChange="{{ addModal.onModelChange }}" placeholder="e.g. 9430"></div>
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select class="input" value="{{ addModal.category }}" onChange="{{ addModal.onCategoryChange }}">
+              <sc-for list="{{ categoryOptions }}" as="c">
+                <option value="{{ c }}">{{ c }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div class="field"><label>VIN / Serial number</label><input class="input" value="{{ addModal.vin }}" onChange="{{ addModal.onVinChange }}"></div>
+          <div class="field"><label>Notes</label><textarea class="input" rows="3" value="{{ addModal.info }}" onChange="{{ addModal.onInfoChange }}"></textarea></div>
+          <div class="field">
+            <label>Filters</label>
+            <sc-for list="{{ addModal.filters }}" as="f" hint-placeholder-count="1">
+              <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Filter type (e.g. Air, Oil, Fuel)" value="{{ f.type }}" onChange="{{ f.onTypeChange }}">
+                <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Part number" value="{{ f.partNumber }}" onChange="{{ f.onPartNumberChange }}">
+                <button class="btn btn-ghost" onClick="{{ f.onRemove }}">Remove</button>
+              </div>
+            </sc-for>
+            <button class="btn btn-ghost" onClick="{{ addModal.onAddFilterRow }}">+ Add filter type</button>
+          </div>
+          <div class="field">
+            <label>Service intervals</label>
+            <div class="card-meta" style="margin-bottom:10px;">Name the service, how often it is due in hours, and the hour reading at the last change.</div>
+            <sc-for list="{{ addModal.services }}" as="sv" hint-placeholder-count="1">
+              <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                <input class="input" style="flex:1 1 auto;min-width:0;" placeholder="e.g. Engine oil" value="{{ sv.name }}" onChange="{{ sv.onNameChange }}">
+                <input class="input" style="width:150px;flex:0 0 auto;" type="number" step="1" placeholder="Every hrs" value="{{ sv.interval }}" onChange="{{ sv.onIntervalChange }}">
+                <input class="input" style="width:160px;flex:0 0 auto;" type="number" step="0.1" placeholder="Last at hrs" value="{{ sv.lastHours }}" onChange="{{ sv.onLastHoursChange }}">
+                <button class="btn btn-ghost" onClick="{{ sv.onRemove }}">Remove</button>
+              </div>
+            </sc-for>
+            <button class="btn btn-ghost" onClick="{{ addModal.onAddServiceRow }}">+ Add service interval</button>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ addModal.onCancel }}">Cancel</button>
+          <button class="btn btn-primary" disabled="{{ addModal.saveDisabled }}" onClick="{{ addModal.onSave }}">Add equipment</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:1000px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <button class="btn btn-ghost" style="margin-bottom:16px;" onClick="{{ backToHistory }}">← Back to Equipment History</button>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h1 style="font-family:var(--font-heading);font-size:28px;margin:0;">{{ detail.name }}</h1>
+          <button class="btn-icon" onClick="{{ detail.onEdit }}" aria-label="Edit equipment">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+          </button>
+          <button class="btn-icon" onClick="{{ detail.onOpenHourCalc }}" aria-label="Operating cost per hour">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="0"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg>
+          </button>
+        </div>
+        <div style="font-family:var(--font-heading);font-size:24px;">{{ detail.totalFormatted }}</div>
+      </div>
+
+      <sc-if value="{{ detail.hasMakeModel }}" hint-placeholder-val="{{ false }}">
+        <div class="card-meta" style="margin-bottom:4px;">{{ detail.make }} {{ detail.model }}</div>
+      </sc-if>
+      <sc-if value="{{ detail.hasVin }}" hint-placeholder-val="{{ false }}">
+        <div class="card-meta" style="margin-bottom:4px;">VIN / Serial: {{ detail.vin }}</div>
+      </sc-if>
+      <sc-if value="{{ detail.hasInfoNote }}" hint-placeholder-val="{{ false }}">
+        <div class="card-meta" style="margin-bottom:24px;">{{ detail.infoNote }}</div>
+      </sc-if>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px;gap:16px;">
+        <div class="card-title">Service Status</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;color:var(--color-neutral-700);">Current hour meter</label>
+          <input class="input" style="width:130px;" type="number" step="0.1" placeholder="0" value="{{ detail.currentHours }}" onChange="{{ detail.onCurrentHoursChange }}">
+        </div>
+      </div>
+      <div class="card" style="padding:20px;margin-bottom:36px;">
+        <sc-if value="{{ detail.hasServices }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <sc-for list="{{ detail.services }}" as="sv" hint-placeholder-count="3">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="width:12px;height:12px;background:{{ sv.color }};display:inline-block;"></span>
+                    <span style="font-family:var(--font-heading);font-size:16px;">{{ sv.name }}</span>
+                    <span style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:{{ sv.color }};">{{ sv.statusLabel }}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="card-meta">{{ sv.detailLabel }}</span>
+                    <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onClick="{{ sv.onLogService }}">Mark done</button>
+                  </div>
+                </div>
+                <div style="height:12px;background:var(--color-neutral-200);position:relative;">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ sv.pctWidth }};background:{{ sv.color }};"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ detail.noServices }}" hint-placeholder-val="{{ false }}">
+          <div class="card-meta">No service intervals set. Use the edit button above to add engine oil, hydraulic oil, gearbox and any other interval.</div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ detail.hasFilters }}" hint-placeholder-val="{{ false }}">
+        <div class="card-title" style="margin-bottom:12px;">Filters</div>
+        <table class="table et-table" style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+          <thead><tr><th>Type</th><th>Part Number</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ detail.filters }}" as="f" hint-placeholder-count="2">
+              <tr><td>{{ f.type }}</td><td>{{ f.partNumber }}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+
+      <div class="card-title" style="margin-bottom:12px;">Notes&nbsp;</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;">
+        <div class="field" style="flex:1;min-width:260px;"><label>Note</label><input class="input" style="width:100%;" placeholder="e.g. Replace hydraulic filter every 250 hrs" value="{{ detail.noteText }}" onChange="{{ detail.onNoteTextChange }}"></div>
+        <div class="field"><label>Due date (optional)</label><input class="input" type="date" value="{{ detail.noteDate }}" onChange="{{ detail.onNoteDateChange }}"></div>
+        <button class="btn btn-primary" disabled="{{ detail.addNoteDisabled }}" onClick="{{ detail.onAddNote }}">Add note</button>
+      </div>
+      <sc-for list="{{ detail.notes }}" as="note" hint-placeholder-count="2">
+        <div class="card" style="margin-bottom:12px;padding:16px;">
+          <div style="display:flex;justify-content:space-between;gap:16px;">
+            <div>
+              <div>{{ note.text }}</div>
+              <sc-if value="{{ note.hasDate }}" hint-placeholder-val="{{ false }}">
+                <div class="card-meta">Due {{ note.date }}</div>
+              </sc-if>
+            </div>
+            <button class="btn btn-ghost" onClick="{{ note.onRemove }}">Remove</button>
+          </div>
+        </div>
+      </sc-for>
+
+      <div class="card-title" style="margin:36px 0 12px;">Invoice history</div>
+      <sc-if value="{{ detail.hasItems }}" hint-placeholder-val="{{ false }}">
+        <table class="table et-table" style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+          <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Qty</th><th>Total</th><th>Source</th><th></th></tr></thead>
+          <tbody>
+            <sc-for list="{{ detail.items }}" as="li" hint-placeholder-count="3">
+              <tr>
+                <td>{{ li.date }}</td>
+                <td>{{ li.part }}</td>
+                <td>{{ li.vendor }}</td>
+                <td>{{ li.qty }}</td>
+                <td>{{ li.totalFormatted }}</td>
+                <td>{{ li.fileName }}</td>
+                <td><button class="btn btn-ghost" onClick="{{ li.onRemove }}">Delete</button></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ settingsPasswordModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Enter settings password</div>
+        <div class="dialog-body">
+          <div class="field"><label>Password</label><input class="input" type="password" value="{{ settingsPasswordInput }}" onChange="{{ onSettingsPasswordChange }}"></div>
+          <sc-if value="{{ settingsPasswordError }}" hint-placeholder-val="{{ false }}">
+            <div style="color:var(--color-accent-700);font-size:13px;">Incorrect password.</div>
+          </sc-if>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost" onClick="{{ onSettingsPasswordCancel }}">Cancel</button>
+          <button class="btn btn-primary" onClick="{{ onSettingsPasswordSubmit }}">Unlock</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <h1 style="font-family:var(--font-heading);font-size:28px;margin:0 0 24px;">Settings</h1>
+
+      <div class="card" style="margin-bottom:32px;">
+        <div class="card-title">Start a new year</div>
+        <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Clears all recorded expenses so the shop can begin tracking a fresh year. Equipment, categories, notes, and filters are kept.</div>
+        <sc-if value="{{ newYearConfirmClosed }}" hint-placeholder-val="{{ true }}">
+          <button class="btn btn-secondary" onClick="{{ onStartNewYearClick }}">Start a new year</button>
+        </sc-if>
+        <sc-if value="{{ newYearConfirming }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="color:var(--color-accent-700);">This deletes every recorded expense. This can't be undone.</div>
+            <button class="btn btn-primary" onClick="{{ onConfirmNewYear }}">Yes, start new year</button>
+            <button class="btn btn-ghost" onClick="{{ onCancelNewYear }}">Cancel</button>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <button class="btn btn-secondary" style="display:flex;align-items:center;gap:8px;font-size:18px;padding:10px 18px;" onClick="{{ onToggleCategoriesCollapsed }}">
+          <span style="display:inline-block;transition:transform 0.15s;transform:{{ categoriesCollapseArrow }};">▸</span>
+          <span>Categories</span>
+        </button>
+        <button class="btn btn-secondary" onClick="{{ openCategoryAddModal }}" style="width: 150px; height: 35px">+ Add category</button>
+      </div>
+      <sc-if value="{{ categoriesExpanded }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">
+      <sc-for list="{{ categoryTiles }}" as="cat" hint-placeholder-count="4">
+        <div class="card" style="padding:8px 14px;display:flex;flex-direction:row;align-items:center;gap:12px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:{{ cat.color }};flex-shrink:0;"></div>
+          <div class="card-title" style="font-size:15px;flex:1 1 auto;min-width:0;">{{ cat.name }}</div>
+          <div class="card-meta" style="flex:0 0 auto;white-space:nowrap;">{{ cat.countLabel }}</div>
+          <button class="btn-icon" onClick="{{ cat.onEdit }}" aria-label="Edit category">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+          </button>
+        </div>
+      </sc-for>
+      </div>
+      </sc-if>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:32px 0 16px;">
+        <button class="btn btn-secondary" style="display:flex;align-items:center;gap:8px;font-size:18px;padding:10px 18px;" onClick="{{ onToggleEquipmentSectionCollapsed }}">
+          <span style="display:inline-block;transition:transform 0.15s;transform:{{ equipmentSectionCollapseArrow }};">▸</span>
+          <span>Equipment</span>
+        </button>
+        <button class="btn btn-secondary" onClick="{{ openAddEquipmentModal }}" style="width: 150px; height: 35px">+ Add equipment</button>
+      </div>
+      <sc-if value="{{ equipmentSectionExpanded }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ adminEquipmentRows }}" as="eq" hint-placeholder-count="4">
+        <div class="card" style="margin-bottom:6px;padding:8px 14px;">
+          <div style="display:flex;flex-direction:row;align-items:center;gap:12px;">
+            <div class="card-title" style="font-size:15px;flex:1 1 auto;min-width:0;">{{ eq.name }}</div>
+            <div class="card-meta" style="flex:0 0 auto;white-space:nowrap;">{{ eq.categoryName }}</div>
+            <div style="display:flex;gap:4px;flex:0 0 auto;">
+              <sc-for list="{{ eq.serviceDots }}" as="dot" hint-placeholder-count="0">
+                <span title="{{ dot.name }}" style="width:10px;height:10px;background:{{ dot.color }};display:inline-block;"></span>
+              </sc-for>
+            </div>
+            <button class="btn-icon" onClick="{{ eq.onEdit }}" aria-label="Edit equipment">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+            </button>
+            <button class="btn btn-ghost" onClick="{{ eq.onDelete }}">Delete</button>
+          </div>
+          <sc-if value="{{ eq.confirmingDelete }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div style="color:var(--color-accent-700);">Delete {{ eq.name }} and all its recorded expenses? This can't be undone.</div>
+              <button class="btn btn-primary" onClick="{{ eq.onConfirmDelete }}">Delete equipment</button>
+              <button class="btn btn-ghost" onClick="{{ eq.onCancelDelete }}">Cancel</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      </sc-if>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:32px 0 16px;">
+        <button class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 18px; padding: 10px 18px; width: 150px; height: 44px" onClick="{{ onToggleSuppliersCollapsed }}">
+          <span style="display:inline-block;transition:transform 0.15s;transform:{{ suppliersCollapseArrow }};">▸</span>
+          <span>Suppliers</span>
+        </button>
+        <button class="btn btn-secondary" onClick="{{ openSupplierAddModal }}" style="width: 150px; height: 36px">+ Add supplier</button>
+      </div>
+      <sc-if value="{{ suppliersExpanded }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ supplierRows }}" as="sup" hint-placeholder-count="3">
+        <div class="card" style="margin-bottom:6px;padding:8px 14px;">
+          <div style="display:flex;flex-direction:row;align-items:center;gap:12px;">
+            <div class="card-title" style="font-size:15px;flex:1 1 auto;min-width:0;">{{ sup.name }}</div>
+            <button class="btn-icon" onClick="{{ sup.onEdit }}" aria-label="Edit supplier">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
+            </button>
+            <button class="btn btn-ghost" onClick="{{ sup.onDelete }}">Delete</button>
+          </div>
+          <sc-if value="{{ sup.confirmingDelete }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div style="color:var(--color-accent-700);">Remove {{ sup.name }} from the supplier list?</div>
+              <button class="btn btn-primary" onClick="{{ sup.onConfirmDelete }}">Remove</button>
+              <button class="btn btn-ghost" onClick="{{ sup.onCancelDelete }}">Cancel</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      </sc-if>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:32px 0 16px;">
+        <button class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 18px; padding: 10px 18px; width: 150px; height: 43px" onClick="{{ onToggleBackupCollapsed }}">
+          <span style="display:inline-block;transition:transform 0.15s;transform:{{ backupCollapseArrow }};">▸</span>
+          <span>Backup</span>
+        </button>
+        <button class="btn btn-primary" onClick="{{ onBackupNow }}">Back up now</button>
+      </div>
+      <sc-if value="{{ backupExpanded }}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="padding:16px 20px;">
+          <div style="margin-bottom:8px;">Last backup: <strong>{{ lastBackupLabel }}</strong></div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">
+            Downloads a single JSON file with every category, equipment record, expense, and supplier on this device. Store it somewhere safe (email it to yourself, drop it in a shared drive folder). Since each device keeps its own data, back up from every device your guys use — not just this one. Restore-from-file is coming in a later update.
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isYearly }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;">
+        <h1 style="font-family:var(--font-heading);font-size:28px;margin:0;">Yearly Totals</h1>
+        <select class="input" style="width:110px;" value="{{ selectedYear }}" onChange="{{ onYearChange }}">
+          <sc-for list="{{ years }}" as="y">
+            <option value="{{ y.value }}">{{ y.label }}</option>
+          </sc-for>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <button class="{{ yearlyModeCategoryBtnClass }}" onClick="{{ setYearlyModeCategory }}">Categories</button><button class="{{ yearlyModeEquipmentBtnClass }}" onClick="{{ setYearlyModeEquipment }}">Equipment&nbsp;</button>
+        
+        <button class="{{ yearlyModeVendorBtnClass }}" onClick="{{ setYearlyModeVendor }}">Vendors</button>
+      </div>
+      <input class="input" style="width:100%;margin-bottom:20px;" placeholder="{{ yearlySearchPlaceholder }}" value="{{ yearlySearch }}" onChange="{{ onYearlySearchChange }}">
+      <div class="field" style="max-width:280px;margin-bottom:20px;">
+        <label>Sort by</label>
+        <select class="input" value="{{ yearlySortMode }}" onChange="{{ onYearlySortChange }}">
+          <option value="most">Most expensive</option>
+          <option value="least">Least expensive</option>
+          <option value="alpha">Alphabetical</option>
+          <sc-if value="{{ yearlyModeIsEquipment }}" hint-placeholder-val="{{ true }}">
+            <option value="category">Category</option>
+            <option value="mostPerCategory">Most expensive in each category</option>
+          </sc-if>
+        </select>
+      </div>
+      <table class="table et-table" style="width:100%;border-collapse:collapse;">
+        <thead><tr><th>{{ yearlyIdentityLabel }}</th><sc-if value="{{ yearlyModeIsEquipment }}" hint-placeholder-val="{{ true }}"><th>Category</th></sc-if><th style="width:35%;">Spend</th><th style="text-align:right;">Total</th><sc-if value="{{ yearlyModeIsEquipment }}" hint-placeholder-val="{{ true }}"><th></th></sc-if></tr></thead>
+        <tbody>
+          <sc-for list="{{ yearlyRows }}" as="row" hint-placeholder-count="6">
+            <tr>
+              <td>{{ row.name }}</td>
+              <sc-if value="{{ yearlyModeIsEquipment }}" hint-placeholder-val="{{ true }}"><td>{{ row.category }}</td></sc-if>
+              <td><div style="background:var(--color-neutral-100);height:16px;"><div style="background:{{ row.barColor }};height:16px;width:{{ row.barWidth }};"></div></div></td>
+              <td style="text-align:right;font-family:var(--font-heading);">{{ row.totalFormatted }}</td>
+              <sc-if value="{{ yearlyModeIsEquipment }}" hint-placeholder-val="{{ true }}"><td><button class="btn btn-secondary" onClick="{{ row.onView }}">View</button></td></sc-if>
+            </tr>
+          </sc-for>
+        </tbody>
+        <tfoot>
+          <tr><td style="font-family:var(--font-heading);">Total</td><td></td><td style="text-align:right;font-family:var(--font-heading);">{{ yearlyGrandTotal }}</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAnalytics }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:40px 32px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <h1 style="font-family:var(--font-heading);font-size:28px;margin:0 0 8px;">Advanced Reporting</h1>
+      <p style="color:var(--color-neutral-700);margin:0 0 24px;max-width:640px;">Compare spending year over year, or drill into what a single vendor cost you on a single machine.</p>
+
+      <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+        <button class="{{ anMode1BtnClass }}" onClick="{{ setAnModeVendor }}">Vendor Comparison</button>
+        <button class="{{ anMode2BtnClass }}" onClick="{{ setAnModeEquipment }}">Equipment Comparison</button>
+        <button class="{{ anMode3BtnClass }}" onClick="{{ setAnModeCross }}">Vendor &gt; Equipment</button>
+      </div>
+
+      <sc-if value="{{ anIsYoY }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;">
+          <div class="field" style="width:130px;"><label>Compare year</label>
+            <select class="input" value="{{ anYearA }}" onChange="{{ onAnYearAChange }}">
+              <sc-for list="{{ years }}" as="y"><option value="{{ y.value }}">{{ y.label }}</option></sc-for>
+            </select>
+          </div>
+          <div class="field" style="width:130px;"><label>Against year</label>
+            <select class="input" value="{{ anYearB }}" onChange="{{ onAnYearBChange }}">
+              <sc-for list="{{ years }}" as="y"><option value="{{ y.value }}">{{ y.label }}</option></sc-for>
+            </select>
+          </div>
+          <div class="field" style="flex:1;min-width:220px;"><label>Search</label>
+            <input class="input" style="width:100%;" placeholder="{{ anSearchPlaceholder }}" value="{{ anSearch }}" onChange="{{ onAnSearchChange }}">
+          </div>
+          <div class="field" style="width:190px;"><label>Sort by</label>
+            <select class="input" value="{{ anSort }}" onChange="{{ onAnSortChange }}">
+              <sc-if value="{{ anShowChangeSorts }}" hint-placeholder-val="{{ true }}">
+                <option value="biggestIncrease">Biggest increase</option>
+                <option value="biggestDecrease">Biggest decrease</option>
+              </sc-if>
+              <option value="most">Highest total spend</option>
+              <option value="alpha">Alphabetical</option>
+            </select>
+          </div>
+        </div>
+
+        <sc-if value="{{ anSameYear }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:12px 14px;border:2px solid var(--color-accent);background:var(--color-accent-100);margin-bottom:20px;font-size:14px;">{{ anSameYearNote }}</div>
+        </sc-if>
+
+        <div style="display:flex;gap:20px;margin-bottom:20px;">
+          <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="flex:1;">
+              <div class="card-kicker">{{ anYearA }} total</div>
+              <div style="font-family:var(--font-heading);font-size:32px;">{{ anTotalAFormatted }}</div>
+            </div>
+          </sc-if>
+          <div class="card" style="flex:1;">
+            <div class="card-kicker">{{ anYearB }} total</div>
+            <div style="font-family:var(--font-heading);font-size:32px;">{{ anTotalBFormatted }}</div>
+          </div>
+          <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}">
+            <div class="card" style="flex:1;">
+              <div class="card-kicker">Change</div>
+              <div style="font-family:var(--font-heading);font-size:32px;color:{{ anTotalDeltaColor }};">{{ anTotalDeltaFormatted }}</div>
+              <div class="card-meta">{{ anTotalDeltaPct }}</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <table class="table et-table" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th>{{ anIdentityLabel }}</th>
+              <th style="width:26%;">Spend</th>
+              <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}"><th style="text-align:right;">{{ anYearA }}</th></sc-if>
+              <th style="text-align:right;">{{ anYearB }}</th>
+              <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}"><th style="text-align:right;">Change</th></sc-if>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ anRows }}" as="row" hint-placeholder-count="6">
+              <tr>
+                <td>{{ row.name }}</td>
+                <td>
+                  <div style="display:flex;flex-direction:column;gap:4px;">
+                    <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}">
+                      <div style="background:var(--color-neutral-100);height:10px;"><div style="background:var(--color-neutral-500);height:10px;width:{{ row.barA }};"></div></div>
+                    </sc-if>
+                    <div style="background:var(--color-neutral-100);height:10px;"><div style="background:var(--color-accent);height:10px;width:{{ row.barB }};"></div></div>
+                  </div>
+                </td>
+                <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}"><td style="text-align:right;font-family:var(--font-heading);">{{ row.aFormatted }}</td></sc-if>
+                <td style="text-align:right;font-family:var(--font-heading);">{{ row.bFormatted }}</td>
+                <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}"><td style="text-align:right;font-family:var(--font-heading);color:{{ row.deltaColor }};">{{ row.deltaFormatted }}<div style="font-family:var(--font-body);font-size:12px;color:var(--color-neutral-700);">{{ row.deltaPct }}</div></td></sc-if>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ anShowDelta }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:20px;margin-top:12px;font-size:12px;color:var(--color-neutral-700);">
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:10px;background:var(--color-neutral-500);"></div>{{ anYearA }}</div>
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:10px;background:var(--color-accent);"></div>{{ anYearB }}</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ anNoRows }}" hint-placeholder-val="{{ false }}">
+          <div style="color:var(--color-neutral-700);margin-top:16px;">No spending recorded in either year.</div>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ anIsCross }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:24px;">
+          <div class="field" style="flex:1;min-width:240px;"><label>Vendor</label>
+            <select class="input" style="width:100%;" value="{{ anCrossVendor }}" onChange="{{ onAnCrossVendorChange }}">
+              <option value="">All vendors</option>
+              <sc-for list="{{ anVendorOptions }}" as="v"><option value="{{ v }}">{{ v }}</option></sc-for>
+            </select>
+          </div>
+          <div class="field" style="flex:1;min-width:240px;"><label>Equipment</label>
+            <select class="input" style="width:100%;" value="{{ anCrossEquipment }}" onChange="{{ onAnCrossEquipmentChange }}">
+              <option value="">All equipment</option>
+              <sc-for list="{{ anEquipmentOptions }}" as="e"><option value="{{ e }}">{{ e }}</option></sc-for>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-kicker">{{ anCrossLabel }} — all years</div>
+          <div style="font-family:var(--font-heading);font-size:40px;">{{ anCrossTotalFormatted }}</div>
+          <div class="card-meta">{{ anCrossCountLabel }}</div>
+        </div>
+
+        <table class="table et-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th>Year</th><th style="width:35%;">Spend</th><th style="text-align:right;">Total</th><th style="text-align:right;">Lines</th><th style="text-align:right;">vs prior year</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ anCrossRows }}" as="row" hint-placeholder-count="3">
+              <tr>
+                <td style="font-family:var(--font-heading);">{{ row.year }}</td>
+                <td><div style="background:var(--color-neutral-100);height:16px;"><div style="background:var(--color-accent);height:16px;width:{{ row.barWidth }};"></div></div></td>
+                <td style="text-align:right;font-family:var(--font-heading);">{{ row.totalFormatted }}</td>
+                <td style="text-align:right;">{{ row.count }}</td>
+                <td style="text-align:right;color:{{ row.deltaColor }};">{{ row.deltaFormatted }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ anCrossNoRows }}" hint-placeholder-val="{{ false }}">
+          <div style="color:var(--color-neutral-700);margin-top:16px;">No expenses match that vendor and equipment combination.</div>
+        </sc-if>
+
+        <sc-if value="{{ anCrossHasLines }}" hint-placeholder-val="{{ false }}">
+          <h2 style="font-family:var(--font-heading);font-size:20px;margin:32px 0 12px;">Line items</h2>
+          <table class="table et-table" style="width:100%;border-collapse:collapse;">
+            <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Equipment</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ anCrossLines }}" as="li" hint-placeholder-count="4">
+                <tr>
+                  <td>{{ li.date }}</td>
+                  <td>{{ li.part }}</td>
+                  <td>{{ li.vendor }}</td>
+                  <td>{{ li.equipment }}</td>
+                  <td style="text-align:right;">{{ li.qty }}</td>
+                  <td style="text-align:right;font-family:var(--font-heading);">{{ li.totalFormatted }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </sc-if>
+      </sc-if>
+    </div>
+  </sc-if>
+
+
+</div></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: {&quot;width&quot;: 1400, &quot;height&quot;: 900},
+  &quot;requireEquipmentBeforeSave&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Rules&quot;},
+  &quot;defaultView&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;dashboard&quot;, &quot;options&quot;: [&quot;dashboard&quot;, &quot;upload&quot;, &quot;history&quot;, &quot;yearly&quot;, &quot;analytics&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Behavior&quot;},
+  &quot;settingsPassword&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;1234&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Behavior&quot;}
+}">
+const STORAGE_KEY = 'farmFleetExpenses_v1';
+const EQUIPMENT = ["Combine 1", "Combine 2", "Combine 3", "Combine 4", "9430 Tractor", "7230R Tractor"];
+
+class Component extends DCLogic {
+  state = {
+    view: (this.props.defaultView) || 'dashboard',
+    dashboardYear: new Date().getFullYear(),
+    equipment: EQUIPMENT,
+    invoices: [],
+    pendingInvoice: null,
+    year: new Date().getFullYear(),
+    newEquipmentName: '',
+    manualFormOpenFor: null,
+    manualForm: null,
+    addExpenseMode: 'upload',
+    allExpSearch: '',
+    allExpSort: 'newest',
+    standaloneRows: [{ part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: new Date().toISOString().slice(0, 10), equipment: '' }],
+    suppliers: [],
+    suppliersExpanded: false,
+    supplierAddModalOpen: false,
+    supplierAddDraft: '',
+    confirmDeleteSupplierFor: null,
+    supplierEditModalOpenFor: null,
+    supplierEditDraft: '',
+    detailEquipment: null,
+    hourCalcOpen: false,
+    notes: {},
+    noteText: '',
+    noteDate: '',
+    equipmentInfo: {},
+    equipmentHours: {},
+    equipmentCategory: {},
+    equipmentFilters: {},
+    equipmentService: {},
+    selectedCategory: null,
+    editModalOpenFor: null,
+    editModalDraft: null,
+    addModalOpen: false,
+    addModalDraft: null,
+    confirmDeleteFor: null,
+    manageOpenFor: null,
+    categories: ["Car / Truck", "Combine", "Tractor", "Construction Equipment", "Telehandler", "Other"],
+    categoryColors: {
+      "Car / Truck": "oklch(60% 0.19 260)",
+      "Combine": "oklch(60% 0.19 29)",
+      "Tractor": "oklch(60% 0.19 140)",
+      "Construction Equipment": "oklch(60% 0.19 80)",
+      "Telehandler": "oklch(60% 0.19 320)",
+      "Other": "oklch(60% 0.19 200)",
+    },
+    categoryEditModalOpenFor: null,
+    categoryEditDraft: '',
+    categoryEditColorDraft: '',
+    categoryAddModalOpen: false,
+    categoryAddDraft: null,
+    settingsUnlocked: false,
+    settingsPasswordModalOpen: false,
+    settingsPasswordInput: '',
+    settingsPasswordError: false,
+    newYearConfirming: false,
+    equipmentSearch: '',
+    equipmentListMode: 'categories',
+    yearlySortMode: 'most',
+    yearlyGroupMode: 'category',
+    yearlySearch: '',
+    analyticsMode: 'vendor',
+    anYearA: null,
+    anYearB: null,
+    anSearch: '',
+    anSort: 'biggestIncrease',
+    anCrossVendor: '',
+    anCrossEquipment: '',
+  };
+
+  allExpenseVals(invoices, fmt) {
+    const term = (this.state.allExpSearch || '').trim().toLowerCase();
+    const sort = this.state.allExpSort || 'newest';
+    const lines = [];
+    invoices.forEach((inv) => inv.lineItems.forEach((li) => lines.push(li)));
+    const filtered = term ? lines.filter((li) => [li.part, li.vendor, li.equipment, li.date]
+      .some((v) => (v || '').toLowerCase().includes(term))) : lines;
+    const amt = (li) => parseFloat(li.totalCost) || 0;
+    const sorted = [...filtered].sort((a, b) => {
+      if (sort === 'oldest') return (a.date || '').localeCompare(b.date || '');
+      if (sort === 'highest') return amt(b) - amt(a);
+      if (sort === 'lowest') return amt(a) - amt(b);
+      return (b.date || '').localeCompare(a.date || '');
+    });
+    return {
+      allExpSearch: this.state.allExpSearch || '',
+      onAllExpSearchChange: (e) => this.setState({ allExpSearch: e.target.value }),
+      allExpSort: sort,
+      onAllExpSortChange: (e) => this.setState({ allExpSort: e.target.value }),
+      allExpRows: sorted.map((li) => ({
+        date: li.date || '—',
+        part: li.part || '—',
+        vendor: li.vendor || '—',
+        equipment: li.equipment || 'Unassigned',
+        qty: li.qty || '',
+        totalFormatted: fmt(li.totalCost),
+      })),
+      allExpNoRows: sorted.length === 0,
+      allExpEmptyText: lines.length === 0 ? 'No expenses logged yet.' : 'No expenses match that search.',
+      allExpCountLabel: sorted.length + (sorted.length === 1 ? ' expense' : ' expenses'),
+      allExpTotalFormatted: fmt(sorted.reduce((s, li) => s + amt(li), 0)),
+    };
+  }
+
+  analyticsVals(invoices, years, fmt) {
+    const { analyticsMode, anSearch, anSort, anCrossVendor, anCrossEquipment } = this.state;
+    const sortedYears = [...years].sort((a, b) => b - a);
+    const yearB = this.state.anYearB || sortedYears[0];
+    const yearA = this.state.anYearA || (sortedYears[1] || sortedYears[0]);
+    const isVendorMode = analyticsMode === 'vendor';
+    const signed = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + '$' + Math.abs(n).toFixed(2);
+    const deltaColor = (n) => (n > 0 ? 'var(--color-accent-700)' : n < 0 ? 'var(--color-neutral-700)' : 'var(--color-text)');
+
+    const lines = [];
+    invoices.forEach((inv) => inv.lineItems.forEach((li) => lines.push(li)));
+    const keyOf = (li) => isVendorMode
+      ? (li.vendor && li.vendor.trim() ? li.vendor.trim() : 'Unknown vendor')
+      : (li.equipment || 'Unassigned');
+
+    const sameYear = yearA === yearB;
+    const agg = {};
+    lines.forEach((li) => {
+      if (!li.date) return;
+      const y = parseInt(li.date.slice(0, 4), 10);
+      if (y !== yearA && y !== yearB) return;
+      const k = keyOf(li);
+      if (!agg[k]) agg[k] = { a: 0, b: 0 };
+      const amt = parseFloat(li.totalCost) || 0;
+      if (sameYear) { agg[k].a += amt; agg[k].b += amt; }
+      else agg[k][y === yearA ? 'a' : 'b'] += amt;
+    });
+
+    const term = anSearch.trim().toLowerCase();
+    let rows = Object.keys(agg)
+      .map((k) => ({ name: k, a: agg[k].a, b: agg[k].b, delta: agg[k].b - agg[k].a }))
+      .filter((r) => (r.a > 0 || r.b > 0) && (!term || r.name.toLowerCase().includes(term)));
+
+    const effSort = sameYear && (anSort === 'biggestIncrease' || anSort === 'biggestDecrease') ? 'most' : anSort;
+    if (effSort === 'alpha') rows.sort((x, y2) => x.name.localeCompare(y2.name));
+    else if (effSort === 'most') rows.sort((x, y2) => y2.b - x.b || y2.a - x.a);
+    else if (effSort === 'biggestDecrease') rows.sort((x, y2) => x.delta - y2.delta);
+    else rows.sort((x, y2) => y2.delta - x.delta);
+
+    const maxVal = Math.max(1, ...rows.map((r) => Math.max(r.a, r.b)));
+    const totalA = rows.reduce((s, r) => s + r.a, 0);
+    const totalB = rows.reduce((s, r) => s + r.b, 0);
+    const totalDelta = totalB - totalA;
+
+    // Vendor × Equipment drilldown
+    const crossLines = lines.filter((li) =>
+      (!anCrossVendor || (li.vendor || '').trim() === anCrossVendor) &&
+      (!anCrossEquipment || li.equipment === anCrossEquipment));
+    const crossByYear = {};
+    crossLines.forEach((li) => {
+      const y = li.date ? li.date.slice(0, 4) : 'No date';
+      if (!crossByYear[y]) crossByYear[y] = { total: 0, count: 0 };
+      crossByYear[y].total += parseFloat(li.totalCost) || 0;
+      crossByYear[y].count += 1;
+    });
+    const crossYearKeys = Object.keys(crossByYear).sort();
+    const maxCross = Math.max(1, ...crossYearKeys.map((y) => crossByYear[y].total));
+    const crossRows = crossYearKeys.map((y, i) => {
+      const prev = i > 0 ? crossByYear[crossYearKeys[i - 1]].total : null;
+      const d = prev === null ? null : crossByYear[y].total - prev;
+      return {
+        year: y,
+        total: crossByYear[y].total,
+        totalFormatted: fmt(crossByYear[y].total),
+        count: crossByYear[y].count,
+        barWidth: Math.round((crossByYear[y].total / maxCross) * 100) + '%',
+        deltaFormatted: d === null ? '—' : signed(d),
+        deltaColor: d === null ? 'var(--color-neutral-700)' : deltaColor(d),
+      };
+    }).reverse();
+    const crossTotal = crossLines.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+    const vendorSet = new Set();
+    lines.forEach((li) => { if (li.vendor && li.vendor.trim()) vendorSet.add(li.vendor.trim()); });
+
+    return {
+      isAnalytics: this.state.view === 'analytics',
+      analyticsBtnClass: 'btn ' + (this.state.view === 'analytics' ? 'btn-primary' : 'btn-ghost'),
+      setViewAnalytics: () => this.setState({ view: 'analytics' }),
+      anMode1BtnClass: 'btn ' + (analyticsMode === 'vendor' ? 'btn-primary' : 'btn-ghost'),
+      anMode2BtnClass: 'btn ' + (analyticsMode === 'equipment' ? 'btn-primary' : 'btn-ghost'),
+      anMode3BtnClass: 'btn ' + (analyticsMode === 'cross' ? 'btn-primary' : 'btn-ghost'),
+      setAnModeVendor: () => this.setState({ analyticsMode: 'vendor', anSearch: '' }),
+      setAnModeEquipment: () => this.setState({ analyticsMode: 'equipment', anSearch: '' }),
+      setAnModeCross: () => this.setState({ analyticsMode: 'cross' }),
+      anIsYoY: analyticsMode === 'vendor' || analyticsMode === 'equipment',
+      anIsCross: analyticsMode === 'cross',
+      anIdentityLabel: isVendorMode ? 'Vendor' : 'Equipment',
+      anShowDelta: !sameYear,
+      anSameYear: sameYear,
+      anSameYearNote: sortedYears.length < 2
+        ? 'Only ' + yearB + ' has expenses so far — showing single-year totals. Once another year has entries you can compare them here.'
+        : 'Both selectors are set to ' + yearB + ' — pick a different year to compare against.',
+      anSearchPlaceholder: isVendorMode ? 'Search vendors…' : 'Search equipment…',
+      anYearA: yearA,
+      anYearB: yearB,
+      onAnYearAChange: (e) => this.setState({ anYearA: parseInt(e.target.value, 10) }),
+      onAnYearBChange: (e) => this.setState({ anYearB: parseInt(e.target.value, 10) }),
+      anSearch,
+      onAnSearchChange: (e) => this.setState({ anSearch: e.target.value }),
+      anSort: effSort,
+      onAnSortChange: (e) => this.setState({ anSort: e.target.value }),
+      anShowChangeSorts: !sameYear,
+      anRows: rows.map((r) => ({
+        name: r.name,
+        aFormatted: fmt(r.a),
+        bFormatted: fmt(r.b),
+        barA: Math.round((r.a / maxVal) * 100) + '%',
+        barB: Math.round((r.b / maxVal) * 100) + '%',
+        deltaFormatted: signed(r.delta),
+        deltaColor: deltaColor(r.delta),
+        deltaPct: r.a > 0 ? (r.delta >= 0 ? '+' : '−') + Math.abs(Math.round((r.delta / r.a) * 100)) + '%' : (r.b > 0 ? 'new' : ''),
+      })),
+      anNoRows: rows.length === 0,
+      anTotalAFormatted: fmt(totalA),
+      anTotalBFormatted: fmt(totalB),
+      anTotalDeltaFormatted: signed(totalDelta),
+      anTotalDeltaColor: deltaColor(totalDelta),
+      anTotalDeltaPct: totalA > 0 ? (totalDelta >= 0 ? '+' : '−') + Math.abs(Math.round((totalDelta / totalA) * 100)) + '% vs ' + yearA : '',
+      anVendorOptions: [...vendorSet].sort((a, b) => a.localeCompare(b)),
+      anEquipmentOptions: this.state.equipment,
+      anCrossVendor,
+      anCrossEquipment,
+      onAnCrossVendorChange: (e) => this.setState({ anCrossVendor: e.target.value }),
+      onAnCrossEquipmentChange: (e) => this.setState({ anCrossEquipment: e.target.value }),
+      anCrossLabel: (anCrossVendor || 'All vendors') + ' · ' + (anCrossEquipment || 'All equipment'),
+      anCrossTotalFormatted: fmt(crossTotal),
+      anCrossCountLabel: crossLines.length + (crossLines.length === 1 ? ' line item' : ' line items'),
+      anCrossRows: crossRows,
+      anCrossNoRows: crossRows.length === 0,
+      anCrossHasLines: crossLines.length > 0,
+      anCrossLines: [...crossLines].sort((a, b) => (b.date || '').localeCompare(a.date || '')).map((li) => ({
+        date: li.date || '—',
+        part: li.part || '—',
+        vendor: li.vendor || '—',
+        equipment: li.equipment || '—',
+        qty: li.qty || '',
+        totalFormatted: fmt(li.totalCost),
+      })),
+    };
+  }
+
+  static COLOR_SWATCHES = ["oklch(60% 0.19 0)", "oklch(60% 0.19 29)", "oklch(60% 0.19 55)", "oklch(60% 0.19 80)", "oklch(60% 0.19 110)", "oklch(60% 0.19 140)", "oklch(60% 0.19 165)", "oklch(60% 0.19 200)", "oklch(60% 0.19 230)", "oklch(60% 0.19 260)", "oklch(60% 0.19 290)", "oklch(60% 0.19 320)", "oklch(60% 0.19 345)", "oklch(45% 0.03 0)"];
+
+  doBackup() {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      invoices: this.state.invoices,
+      equipment: this.state.equipment,
+      notes: this.state.notes,
+      equipmentInfo: this.state.equipmentInfo,
+      equipmentHours: this.state.equipmentHours,
+      equipmentCategory: this.state.equipmentCategory,
+      equipmentFilters: this.state.equipmentFilters,
+      equipmentService: this.state.equipmentService,
+      categories: this.state.categories,
+      categoryColors: this.state.categoryColors,
+      suppliers: this.state.suppliers,
+    };
+    try {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'farm-fleet-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const nowIso = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY + '_last_backup', nowIso);
+      this.setState({ lastBackupAt: nowIso, showBackupBanner: false });
+    } catch (e) {}
+  }
+
+  onSettingsClick() {
+    if (this.state.settingsUnlocked) { this.setState({ view: 'settings' }); return; }
+    this.setState({ settingsPasswordModalOpen: true, settingsPasswordInput: '', settingsPasswordError: false });
+  }
+
+  submitSettingsPassword() {
+    const expected = this.props.settingsPassword || '1234';
+    if (this.state.settingsPasswordInput === expected) {
+      this.setState({ settingsUnlocked: true, settingsPasswordModalOpen: false, settingsPasswordInput: '', settingsPasswordError: false, view: 'settings' });
+    } else {
+      this.setState({ settingsPasswordError: true });
+    }
+  }
+
+  startNewYear() {
+    this.setState({ invoices: [], newYearConfirming: false });
+    this.persist([]);
+  }
+
+  blankManualForm() {
+    return { part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: new Date().toISOString().slice(0, 10) };
+  }
+
+  openManualForm(equipmentName) {
+    this.setState({ manualFormOpenFor: equipmentName, manualForm: this.blankManualForm() });
+  }
+
+  closeManualForm() {
+    this.setState({ manualFormOpenFor: null, manualForm: null });
+  }
+
+  updateManualForm(field, value) {
+    this.setState((s) => {
+      const form = { ...s.manualForm, [field]: value };
+      if (field === 'qty' || field === 'unitCost') {
+        const qty = parseFloat(field === 'qty' ? value : form.qty) || 0;
+        const unitCost = parseFloat(field === 'unitCost' ? value : form.unitCost) || 0;
+        form.totalCost = (qty * unitCost) ? String(+(qty * unitCost).toFixed(2)) : '';
+      }
+      return { manualForm: form };
+    });
+  }
+
+  blankStandaloneRow() {
+    return { part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: new Date().toISOString().slice(0, 10), equipment: '' };
+  }
+
+  updateStandaloneRow(index, field, value) {
+    this.setState((s) => {
+      const rows = [...s.standaloneRows];
+      const row = { ...rows[index], [field]: value };
+      if (field === 'qty' || field === 'unitCost') {
+        const qty = parseFloat(field === 'qty' ? value : row.qty) || 0;
+        const unitCost = parseFloat(field === 'unitCost' ? value : row.unitCost) || 0;
+        row.totalCost = (qty * unitCost) ? String(+(qty * unitCost).toFixed(2)) : '';
+      }
+      rows[index] = row;
+      return { standaloneRows: rows };
+    });
+  }
+
+  addStandaloneRow() {
+    this.setState((s) => ({ standaloneRows: [...s.standaloneRows, this.blankStandaloneRow()] }));
+  }
+
+  removeStandaloneRow(index) {
+    this.setState((s) => ({ standaloneRows: s.standaloneRows.length > 1 ? s.standaloneRows.filter((_, i) => i !== index) : s.standaloneRows }));
+  }
+
+  saveAllStandaloneRows() {
+    this.setState((s) => {
+      const validRows = s.standaloneRows.filter((r) => r.part.trim() && r.equipment);
+      if (!validRows.length) return null;
+      const lineItems = validRows.map((f) => ({ id: 'li_' + Math.random().toString(36).slice(2), part: f.part, qty: f.qty, unitCost: f.unitCost, totalCost: f.totalCost, vendor: f.vendor, date: f.date, equipment: f.equipment }));
+      const invoice = { id: 'inv_' + Date.now(), fileName: 'Manual entry', savedAt: new Date().toISOString(), lineItems };
+      const invoices = [...s.invoices, invoice];
+      this.persist(invoices);
+      return { invoices, standaloneRows: [this.blankStandaloneRow()], view: 'history' };
+    });
+  }
+
+  saveManualExpense() {
+    const { manualFormOpenFor, manualForm } = this.state;
+    if (!manualFormOpenFor || !manualForm) return;
+    const lineItem = { id: 'li_' + Math.random().toString(36).slice(2), ...manualForm, equipment: manualFormOpenFor };
+    const invoice = { id: 'inv_' + Date.now(), fileName: 'Manual entry', savedAt: new Date().toISOString(), lineItems: [lineItem] };
+    this.setState((s) => {
+      const invoices = [...s.invoices, invoice];
+      this.persist(invoices);
+      return { invoices, manualFormOpenFor: null, manualForm: null };
+    });
+  }
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) this.setState({ invoices: JSON.parse(raw) });
+      const rawEq = localStorage.getItem(STORAGE_KEY + '_equipment');
+      if (rawEq) this.setState({ equipment: JSON.parse(rawEq) });
+      const rawNotes = localStorage.getItem(STORAGE_KEY + '_notes');
+      if (rawNotes) this.setState({ notes: JSON.parse(rawNotes) });
+      const rawInfo = localStorage.getItem(STORAGE_KEY + '_info');
+      if (rawInfo) this.setState({ equipmentInfo: JSON.parse(rawInfo) });
+      const rawHours = localStorage.getItem(STORAGE_KEY + '_hours');
+      if (rawHours) this.setState({ equipmentHours: JSON.parse(rawHours) });
+      const rawCat = localStorage.getItem(STORAGE_KEY + '_category');
+      if (rawCat) this.setState({ equipmentCategory: JSON.parse(rawCat) });
+      const rawService = localStorage.getItem(STORAGE_KEY + '_service');
+      if (rawService) this.setState({ equipmentService: JSON.parse(rawService) });
+      const rawFilters = localStorage.getItem(STORAGE_KEY + '_filters');
+      if (rawFilters) this.setState({ equipmentFilters: JSON.parse(rawFilters) });
+      const rawCategories = localStorage.getItem(STORAGE_KEY + '_categories');
+      if (rawCategories) this.setState({ categories: JSON.parse(rawCategories) });
+      const rawCategoryColors = localStorage.getItem(STORAGE_KEY + '_category_colors');
+      if (rawCategoryColors) this.setState({ categoryColors: JSON.parse(rawCategoryColors) });
+      const rawSuppliers = localStorage.getItem(STORAGE_KEY + '_suppliers');
+      if (rawSuppliers) this.setState({ suppliers: JSON.parse(rawSuppliers) });
+      const lastBackupAt = localStorage.getItem(STORAGE_KEY + '_last_backup');
+      this.setState({ lastBackupAt: lastBackupAt || null });
+      const staleDays = lastBackupAt ? (Date.now() - new Date(lastBackupAt).getTime()) / 86400000 : Infinity;
+      if (staleDays >= 7) this.setState({ showBackupBanner: true });
+    } catch (e) {}
+  }
+
+  persistSuppliers(suppliers) {
+    try { localStorage.setItem(STORAGE_KEY + '_suppliers', JSON.stringify(suppliers)); } catch (e) {}
+  }
+
+  addSupplier(name) {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
+    this.setState((s) => {
+      if (s.suppliers.some((v) => v.toLowerCase() === trimmed.toLowerCase())) return null;
+      const suppliers = [...s.suppliers, trimmed];
+      this.persistSuppliers(suppliers);
+      return { suppliers };
+    });
+  }
+
+  deleteSupplier(name) {
+    this.setState((s) => {
+      const suppliers = s.suppliers.filter((v) => v !== name);
+      this.persistSuppliers(suppliers);
+      return { suppliers, confirmDeleteSupplierFor: null };
+    });
+  }
+
+  openSupplierEditModal(name) {
+    this.setState({ supplierEditModalOpenFor: name, supplierEditDraft: name });
+  }
+
+  saveSupplierEdit() {
+    const oldName = this.state.supplierEditModalOpenFor;
+    const newName = this.state.supplierEditDraft.trim();
+    if (!newName || (newName !== oldName && this.state.suppliers.some((v) => v.toLowerCase() === newName.toLowerCase()))) return;
+    this.setState((s) => {
+      const suppliers = s.suppliers.map((v) => v === oldName ? newName : v);
+      const invoices = s.invoices.map((inv) => ({
+        ...inv,
+        lineItems: inv.lineItems.map((li) => li.vendor === oldName ? { ...li, vendor: newName } : li),
+      }));
+      this.persistSuppliers(suppliers);
+      this.persist(invoices);
+      return { suppliers, invoices, supplierEditModalOpenFor: null, supplierEditDraft: '' };
+    });
+  }
+
+  persistCategoryColors(colors) {
+    try { localStorage.setItem(STORAGE_KEY + '_category_colors', JSON.stringify(colors)); } catch (e) {}
+  }
+
+  persistCategories(categories) {
+    try { localStorage.setItem(STORAGE_KEY + '_categories', JSON.stringify(categories)); } catch (e) {}
+  }
+
+  openCategoryEditModal(cat) {
+    this.setState({ categoryEditModalOpenFor: cat, categoryEditDraft: cat, categoryEditColorDraft: this.state.categoryColors[cat] || Component.COLOR_SWATCHES[0] });
+  }
+
+  closeCategoryEditModal() {
+    this.setState({ categoryEditModalOpenFor: null, categoryEditDraft: '', categoryEditColorDraft: '' });
+  }
+
+  saveCategoryEdit() {
+    const oldName = this.state.categoryEditModalOpenFor;
+    const newName = this.state.categoryEditDraft.trim();
+    const color = this.state.categoryEditColorDraft;
+    if (!newName || (newName !== oldName && this.state.categories.includes(newName))) return;
+    this.setState((s) => {
+      const categories = s.categories.map((c) => c === oldName ? newName : c);
+      const equipmentCategory = { ...s.equipmentCategory };
+      Object.keys(equipmentCategory).forEach((eq) => { if (equipmentCategory[eq] === oldName) equipmentCategory[eq] = newName; });
+      const categoryColors = { ...s.categoryColors };
+      delete categoryColors[oldName];
+      categoryColors[newName] = color;
+      this.persistCategories(categories);
+      this.persistCategory(equipmentCategory);
+      this.persistCategoryColors(categoryColors);
+      return { categories, equipmentCategory, categoryColors, categoryEditModalOpenFor: null, categoryEditDraft: '', categoryEditColorDraft: '', selectedCategory: s.selectedCategory === oldName ? newName : s.selectedCategory };
+    });
+  }
+
+  openCategoryAddModal() {
+    this.setState({ categoryAddModalOpen: true, categoryAddDraft: { name: '', color: Component.COLOR_SWATCHES[0] } });
+  }
+
+  closeCategoryAddModal() {
+    this.setState({ categoryAddModalOpen: false, categoryAddDraft: null });
+  }
+
+  saveCategoryAdd() {
+    const draft = this.state.categoryAddDraft;
+    const name = draft.name.trim();
+    if (!name || this.state.categories.includes(name)) return;
+    this.setState((s) => {
+      const categories = [...s.categories, name];
+      const categoryColors = { ...s.categoryColors, [name]: draft.color };
+      this.persistCategories(categories);
+      this.persistCategoryColors(categoryColors);
+      return { categories, categoryColors, categoryAddModalOpen: false, categoryAddDraft: null };
+    });
+  }
+
+  persistFilters(filters) {
+    try { localStorage.setItem(STORAGE_KEY + '_filters', JSON.stringify(filters)); } catch (e) {}
+  }
+
+  persistCategory(cat) {
+    try { localStorage.setItem(STORAGE_KEY + '_category', JSON.stringify(cat)); } catch (e) {}
+  }
+
+  persistNotes(notes) {
+    try { localStorage.setItem(STORAGE_KEY + '_notes', JSON.stringify(notes)); } catch (e) {}
+  }
+
+  persistInfo(info) {
+    try { localStorage.setItem(STORAGE_KEY + '_info', JSON.stringify(info)); } catch (e) {}
+  }
+
+  persistService(svc) {
+    try { localStorage.setItem(STORAGE_KEY + '_service', JSON.stringify(svc)); } catch (e) {}
+  }
+
+  serviceStatus(pct) {
+    if (pct >= 1) return { color: 'oklch(55% 0.21 27)', label: 'Overdue' };
+    if (pct >= 0.9) return { color: 'oklch(68% 0.17 55)', label: 'Due now' };
+    if (pct >= 0.75) return { color: 'oklch(76% 0.15 90)', label: 'Due soon' };
+    return { color: 'oklch(56% 0.14 150)', label: 'OK' };
+  }
+
+  serviceDots(eq) {
+    const list = (this.state.equipmentService || {})[eq] || [];
+    const cur = parseFloat(((this.state.equipmentHours || {})[eq] || {}).end);
+    return list.map((sv) => {
+      const interval = parseFloat(sv.interval);
+      const last = parseFloat(sv.lastHours);
+      if (isNaN(interval) || interval <= 0 || isNaN(last) || isNaN(cur)) return { name: sv.name, color: 'var(--color-neutral-400)' };
+      const st = this.serviceStatus(Math.max(0, cur - last) / interval);
+      return { name: sv.name + ' — ' + st.label, color: st.color };
+    });
+  }
+
+  logService(eq, idx) {
+    const cur = parseFloat(((this.state.equipmentHours || {})[eq] || {}).end);
+    if (isNaN(cur)) return;
+    this.setState((s) => {
+      const list = (s.equipmentService[eq] || []).map((sv, i) => i === idx ? { ...sv, lastHours: String(cur) } : sv);
+      const equipmentService = { ...s.equipmentService, [eq]: list };
+      this.persistService(equipmentService);
+      return { equipmentService };
+    });
+  }
+
+  persistHours(hours) {
+    try { localStorage.setItem(STORAGE_KEY + '_hours', JSON.stringify(hours)); } catch (e) {}
+  }
+
+  setEquipmentHours(eq, key, value) {
+    if (!eq) return;
+    this.setState((s) => {
+      const cur = s.equipmentHours[eq] || { start: '', end: '' };
+      const equipmentHours = { ...s.equipmentHours, [eq]: { ...cur, [key]: value } };
+      this.persistHours(equipmentHours);
+      return { equipmentHours };
+    });
+  }
+
+  viewEquipment(eq) {
+    this.setState({ view: 'detail', detailEquipment: eq, noteText: '', noteDate: '' });
+  }
+
+  addNote() {
+    const { detailEquipment, noteText, noteDate } = this.state;
+    if (!detailEquipment || !noteText.trim()) return;
+    const note = { id: 'note_' + Math.random().toString(36).slice(2), text: noteText.trim(), date: noteDate || '' };
+    this.setState((s) => {
+      const list = s.notes[detailEquipment] || [];
+      const notes = { ...s.notes, [detailEquipment]: [...list, note] };
+      this.persistNotes(notes);
+      return { notes, noteText: '', noteDate: '' };
+    });
+  }
+
+  openEditModal(eq) {
+    const info = this.state.equipmentInfo[eq] || { vin: '', info: '', make: '', model: '' };
+    const category = this.state.equipmentCategory[eq] || 'Other';
+    const filters = (this.state.equipmentFilters[eq] || []).map((f) => ({ ...f }));
+    const services = (this.state.equipmentService[eq] || []).map((s) => ({ ...s }));
+    this.setState({ editModalOpenFor: eq, editModalDraft: { name: eq, vin: info.vin || '', info: info.info || '', make: info.make || '', model: info.model || '', category, filters, services } });
+  }
+
+  closeEditModal() {
+    this.setState({ editModalOpenFor: null, editModalDraft: null });
+  }
+
+  updateEditModal(field, value) {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, [field]: value } }));
+  }
+
+  addEditFilterRow() {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, filters: [...s.editModalDraft.filters, { type: '', partNumber: '' }] } }));
+  }
+
+  updateEditFilterRow(idx, field, value) {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, filters: s.editModalDraft.filters.map((f, i) => i === idx ? { ...f, [field]: value } : f) } }));
+  }
+
+  removeEditFilterRow(idx) {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, filters: s.editModalDraft.filters.filter((_, i) => i !== idx) } }));
+  }
+
+  addEditServiceRow() {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, services: [...(s.editModalDraft.services || []), { name: '', interval: '', lastHours: '' }] } }));
+  }
+
+  updateEditServiceRow(idx, field, value) {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, services: s.editModalDraft.services.map((sv, i) => i === idx ? { ...sv, [field]: value } : sv) } }));
+  }
+
+  removeEditServiceRow(idx) {
+    this.setState((s) => ({ editModalDraft: { ...s.editModalDraft, services: s.editModalDraft.services.filter((_, i) => i !== idx) } }));
+  }
+
+  saveEditModal(oldName) {
+    const draft = this.state.editModalDraft;
+    const newName = draft.name.trim();
+    if (!newName || (newName !== oldName && this.state.equipment.includes(newName))) return;
+    this.setState((s) => {
+      const equipment = s.equipment.map((e) => e === oldName ? newName : e);
+      const invoices = s.invoices.map((inv) => ({ ...inv, lineItems: inv.lineItems.map((li) => li.equipment === oldName ? { ...li, equipment: newName } : li) }));
+      const notes = { ...s.notes };
+      if (notes[oldName]) { notes[newName] = notes[oldName]; delete notes[oldName]; }
+      const equipmentInfo = { ...s.equipmentInfo };
+      delete equipmentInfo[oldName];
+      equipmentInfo[newName] = { vin: draft.vin, info: draft.info, make: draft.make, model: draft.model };
+      const equipmentCategory = { ...s.equipmentCategory };
+      delete equipmentCategory[oldName];
+      equipmentCategory[newName] = draft.category;
+      const equipmentFilters = { ...s.equipmentFilters };
+      delete equipmentFilters[oldName];
+      equipmentFilters[newName] = draft.filters.filter((f) => f.type.trim() || f.partNumber.trim());
+      const equipmentService = { ...s.equipmentService };
+      delete equipmentService[oldName];
+      equipmentService[newName] = (draft.services || []).filter((sv) => sv.name.trim());
+      const equipmentHours = { ...s.equipmentHours };
+      if (equipmentHours[oldName] && oldName !== newName) { equipmentHours[newName] = equipmentHours[oldName]; delete equipmentHours[oldName]; }
+      this.persistService(equipmentService);
+      this.persistHours(equipmentHours);
+      this.persistEquipment(equipment);
+      this.persist(invoices);
+      this.persistNotes(notes);
+      this.persistInfo(equipmentInfo);
+      this.persistCategory(equipmentCategory);
+      this.persistFilters(equipmentFilters);
+      return { equipment, invoices, notes, equipmentInfo, equipmentCategory, equipmentFilters, equipmentService, equipmentHours, editModalOpenFor: null, editModalDraft: null, detailEquipment: s.detailEquipment === oldName ? newName : s.detailEquipment };
+    });
+  }
+
+  deleteEquipment(eq) {
+    this.setState((s) => {
+      const equipment = s.equipment.filter((e) => e !== eq);
+      const invoices = s.invoices.map((inv) => ({ ...inv, lineItems: inv.lineItems.filter((li) => li.equipment !== eq) })).filter((inv) => inv.lineItems.length > 0);
+      const notes = { ...s.notes };
+      delete notes[eq];
+      const equipmentInfo = { ...s.equipmentInfo };
+      delete equipmentInfo[eq];
+      const equipmentCategory = { ...s.equipmentCategory };
+      delete equipmentCategory[eq];
+      const equipmentFilters = { ...s.equipmentFilters };
+      delete equipmentFilters[eq];
+      const equipmentService = { ...s.equipmentService };
+      delete equipmentService[eq];
+      this.persistService(equipmentService);
+      this.persistEquipment(equipment);
+      this.persist(invoices);
+      this.persistNotes(notes);
+      this.persistInfo(equipmentInfo);
+      this.persistCategory(equipmentCategory);
+      this.persistFilters(equipmentFilters);
+      return { equipment, invoices, notes, equipmentInfo, equipmentCategory, equipmentFilters, equipmentService, confirmDeleteFor: null, view: s.detailEquipment === eq ? 'history' : s.view, detailEquipment: s.detailEquipment === eq ? null : s.detailEquipment };
+    });
+  }
+
+  removeLineItem(invoiceId, lineItemId) {
+    this.setState((s) => {
+      const invoices = s.invoices
+        .map((inv) => inv.id === invoiceId ? { ...inv, lineItems: inv.lineItems.filter((li) => li.id !== lineItemId) } : inv)
+        .filter((inv) => inv.lineItems.length > 0);
+      this.persist(invoices);
+      return { invoices };
+    });
+  }
+
+  removeNote(eq, id) {
+    this.setState((s) => {
+      const notes = { ...s.notes, [eq]: (s.notes[eq] || []).filter((n) => n.id !== id) };
+      this.persistNotes(notes);
+      return { notes };
+    });
+  }
+
+  persist(invoices) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices)); } catch (e) {}
+  }
+
+  persistEquipment(equipment) {
+    try { localStorage.setItem(STORAGE_KEY + '_equipment', JSON.stringify(equipment)); } catch (e) {}
+  }
+
+  addEquipment() {
+    const name = this.state.newEquipmentName.trim();
+    if (!name || this.state.equipment.includes(name)) return;
+    this.setState((s) => {
+      const equipment = [...s.equipment, name];
+      const equipmentCategory = { ...s.equipmentCategory, [name]: s.selectedCategory || 'Other' };
+      this.persistEquipment(equipment);
+      this.persistCategory(equipmentCategory);
+      return { equipment, equipmentCategory, newEquipmentName: '' };
+    });
+  }
+
+  openAddEquipmentModal() {
+    this.setState((s) => ({ addModalOpen: true, addModalDraft: { name: '', category: s.selectedCategory || 'Other', vin: '', info: '', make: '', model: '', filters: [], services: [] } }));
+  }
+
+  closeAddEquipmentModal() {
+    this.setState({ addModalOpen: false, addModalDraft: null });
+  }
+
+  updateAddModal(field, value) {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, [field]: value } }));
+  }
+
+  addAddFilterRow() {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, filters: [...s.addModalDraft.filters, { type: '', partNumber: '' }] } }));
+  }
+
+  updateAddFilterRow(idx, field, value) {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, filters: s.addModalDraft.filters.map((f, i) => i === idx ? { ...f, [field]: value } : f) } }));
+  }
+
+  addAddServiceRow() {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, services: [...(s.addModalDraft.services || []), { name: '', interval: '', lastHours: '' }] } }));
+  }
+
+  updateAddServiceRow(idx, field, value) {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, services: (s.addModalDraft.services || []).map((sv, i) => i === idx ? { ...sv, [field]: value } : sv) } }));
+  }
+
+  removeAddServiceRow(idx) {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, services: (s.addModalDraft.services || []).filter((_, i) => i !== idx) } }));
+  }
+
+  removeAddFilterRow(idx) {
+    this.setState((s) => ({ addModalDraft: { ...s.addModalDraft, filters: s.addModalDraft.filters.filter((_, i) => i !== idx) } }));
+  }
+
+  saveAddEquipmentModal() {
+    const draft = this.state.addModalDraft;
+    const name = draft.name.trim();
+    if (!name || this.state.equipment.includes(name)) return;
+    this.setState((s) => {
+      const equipment = [...s.equipment, name];
+      const equipmentCategory = { ...s.equipmentCategory, [name]: draft.category };
+      const equipmentInfo = { ...s.equipmentInfo, [name]: { vin: draft.vin, info: draft.info, make: draft.make, model: draft.model } };
+      const equipmentFilters = { ...s.equipmentFilters, [name]: draft.filters.filter((f) => f.type.trim() || f.partNumber.trim()) };
+      const equipmentService = { ...s.equipmentService, [name]: (draft.services || []).filter((sv) => sv.name.trim()) };
+      this.persistEquipment(equipment);
+      this.persistCategory(equipmentCategory);
+      this.persistInfo(equipmentInfo);
+      this.persistFilters(equipmentFilters);
+      this.persistService(equipmentService);
+      return { equipment, equipmentCategory, equipmentInfo, equipmentFilters, equipmentService, addModalOpen: false, addModalDraft: null };
+    });
+  }
+
+  blankItem() {
+    return { id: 'li_' + Math.random().toString(36).slice(2), part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: new Date().toISOString().slice(0, 10), equipment: '' };
+  }
+
+  handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const mimeType = file.type || 'image/jpeg';
+      this.setState({ pendingInvoice: { fileName: file.name, dataUrl, mimeType, extracting: true, error: '', lineItems: [] } });
+      this.extractInvoice(dataUrl, mimeType);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  async extractInvoice(dataUrl, mimeType) {
+    const isPdf = mimeType === 'application/pdf';
+    const setStatus = (status) => this.setState((s) => s.pendingInvoice
+      ? { pendingInvoice: { ...s.pendingInvoice, status } } : {});
+    setStatus(isPdf ? 'Reading the PDF text…' : 'Scanning the image (OCR)…');
+    try {
+      const parser = await import('./invoice-parser.js');
+      const text = await parser.readInvoiceText(dataUrl, mimeType, (p) => {
+        setStatus('Scanning the image (OCR) — ' + Math.round(p * 100) + '%');
+      });
+      setStatus('Finding line items…');
+      const { items } = parser.parseInvoiceLines(text);
+      const rows = items.map((it) => ({ ...it, id: 'li_' + Math.random().toString(36).slice(2), equipment: '' }));
+      this.setState((s) => s.pendingInvoice ? {
+        pendingInvoice: {
+          ...s.pendingInvoice,
+          extracting: false,
+          status: '',
+          rawText: text,
+          error: rows.length ? '' : 'No line items were recognized on this invoice. Add them by hand below — the vendor and date fields are yours to fill in.',
+          lineItems: rows.length ? rows : [this.blankItem()],
+        },
+      } : {});
+    } catch (err) {
+      const scanned = err && err.message === 'SCANNED_PDF';
+      this.setState((s) => s.pendingInvoice ? {
+        pendingInvoice: {
+          ...s.pendingInvoice,
+          extracting: false,
+          status: '',
+          error: scanned
+            ? 'This PDF is a scan with no text layer, so there is nothing to read directly. Save the page as a JPG or PNG and upload that instead, or enter the lines by hand below.'
+            : 'Could not read this invoice automatically. Add line items manually below.',
+          lineItems: [this.blankItem()],
+        },
+      } : {});
+    }
+  }
+
+  updatePendingItem(id, field, value) {
+    this.setState((s) => ({ pendingInvoice: { ...s.pendingInvoice, lineItems: s.pendingInvoice.lineItems.map((it) => it.id === id ? { ...it, [field]: value } : it) } }));
+  }
+
+  removePendingItem(id) {
+    this.setState((s) => ({ pendingInvoice: { ...s.pendingInvoice, lineItems: s.pendingInvoice.lineItems.filter((it) => it.id !== id) } }));
+  }
+
+  addPendingRow() {
+    this.setState((s) => ({ pendingInvoice: { ...s.pendingInvoice, lineItems: [...s.pendingInvoice.lineItems, this.blankItem()] } }));
+  }
+
+  isSaveDisabled() {
+    const p = this.state.pendingInvoice;
+    if (!p || p.lineItems.length === 0) return true;
+    if (this.props.requireEquipmentBeforeSave ?? true) return p.lineItems.some((it) => !it.equipment);
+    return false;
+  }
+
+  saveInvoice() {
+    const p = this.state.pendingInvoice;
+    const invoice = { id: 'inv_' + Date.now(), fileName: p.fileName, savedAt: new Date().toISOString(), lineItems: p.lineItems.map((it) => ({ ...it })) };
+    this.setState((s) => {
+      const invoices = [...s.invoices, invoice];
+      this.persist(invoices);
+      return { invoices, pendingInvoice: null, view: 'history' };
+    });
+  }
+
+  getYears(invoices) {
+    const set = new Set([new Date().getFullYear()]);
+    invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.date) set.add(parseInt(li.date.slice(0, 4), 10)); }));
+    return Array.from(set).sort((a, b) => b - a);
+  }
+
+  renderVals() {
+    const { view, equipment, invoices, pendingInvoice, year, newEquipmentName, manualFormOpenFor, manualForm, dashboardYear, addExpenseMode, detailEquipment, notes, noteText, noteDate, equipmentInfo, suppliers, suppliersExpanded, supplierAddModalOpen, supplierAddDraft, confirmDeleteSupplierFor, supplierEditModalOpenFor, supplierEditDraft, editModalOpenFor, editModalDraft, confirmDeleteFor, equipmentCategory, selectedCategory, equipmentFilters, addModalOpen, addModalDraft, manageOpenFor, categories, categoryEditModalOpenFor, categoryEditDraft, categoryColors, categoryEditColorDraft, categoryAddModalOpen, categoryAddDraft, settingsUnlocked, settingsPasswordModalOpen, settingsPasswordInput, settingsPasswordError, newYearConfirming, equipmentSearch, yearlySortMode, yearlyGroupMode, yearlySearch } = this.state;
+    const standaloneRows = (this.state.standaloneRows || [this.blankStandaloneRow()]).map((row, i) => ({
+      ...row,
+      onPartChange: (e) => this.updateStandaloneRow(i, 'part', e.target.value),
+      onQtyChange: (e) => this.updateStandaloneRow(i, 'qty', e.target.value),
+      onUnitCostChange: (e) => this.updateStandaloneRow(i, 'unitCost', e.target.value),
+      onTotalCostChange: (e) => this.updateStandaloneRow(i, 'totalCost', e.target.value),
+      onVendorChange: (e) => this.updateStandaloneRow(i, 'vendor', e.target.value),
+      onDateChange: (e) => this.updateStandaloneRow(i, 'date', e.target.value),
+      onEquipmentChange: (e) => this.updateStandaloneRow(i, 'equipment', e.target.value),
+      onRemove: () => this.removeStandaloneRow(i),
+      canRemove: (this.state.standaloneRows || []).length > 1,
+      showAddSupplier: !!row.vendor.trim() && !this.state.suppliers.some((v) => v.toLowerCase() === row.vendor.trim().toLowerCase()),
+      onQuickAddSupplier: () => this.addSupplier(row.vendor),
+    }));
+    const standaloneSaveDisabled = !standaloneRows.some((r) => r.part.trim() && r.equipment);
+    const fmt = (n) => '$' + (parseFloat(n) || 0).toFixed(2);
+
+    const pendingRows = pendingInvoice ? pendingInvoice.lineItems.map((it) => ({
+      ...it,
+      onPartChange: (e) => this.updatePendingItem(it.id, 'part', e.target.value),
+      onQtyChange: (e) => this.updatePendingItem(it.id, 'qty', e.target.value),
+      onUnitCostChange: (e) => this.updatePendingItem(it.id, 'unitCost', e.target.value),
+      onTotalCostChange: (e) => this.updatePendingItem(it.id, 'totalCost', e.target.value),
+      onVendorChange: (e) => this.updatePendingItem(it.id, 'vendor', e.target.value),
+      onDateChange: (e) => this.updatePendingItem(it.id, 'date', e.target.value),
+      onEquipmentChange: (e) => this.updatePendingItem(it.id, 'equipment', e.target.value),
+      onRemove: () => this.removePendingItem(it.id),
+    })) : [];
+
+    const historyGroups = equipment.filter((eq) => !selectedCategory || (equipmentCategory[eq] || 'Other') === selectedCategory).map((eq) => {
+      const items = [];
+      invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === eq) items.push(li); }));
+      items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const total = items.reduce((s, i) => s + (parseFloat(i.totalCost) || 0), 0);
+      const formOpen = manualFormOpenFor === eq;
+      const form = formOpen ? {
+        ...manualForm,
+        onPartChange: (e) => this.updateManualForm('part', e.target.value),
+        onQtyChange: (e) => this.updateManualForm('qty', e.target.value),
+        onUnitCostChange: (e) => this.updateManualForm('unitCost', e.target.value),
+        onTotalCostChange: (e) => this.updateManualForm('totalCost', e.target.value),
+        onVendorChange: (e) => this.updateManualForm('vendor', e.target.value),
+        onDateChange: (e) => this.updateManualForm('date', e.target.value),
+        onSave: () => this.saveManualExpense(),
+        saveDisabled: !manualForm || !manualForm.part.trim(),
+        showAddSupplier: !!(manualForm.vendor || '').trim() && !this.state.suppliers.some((v) => v.toLowerCase() === manualForm.vendor.trim().toLowerCase()),
+        onQuickAddSupplier: () => this.addSupplier(manualForm.vendor),
+      } : null;
+      return {
+        name: eq,
+        items: items.map((i) => ({ ...i, totalFormatted: fmt(i.totalCost) })),
+        hasItems: items.length > 0,
+        countLabel: items.length + (items.length === 1 ? ' expense' : ' expenses'),
+        totalFormatted: fmt(total),
+        formOpen,
+        formClosed: !formOpen,
+        form,
+        onOpenForm: () => { this.openManualForm(eq); this.setState({ manageOpenFor: null }); },
+        onCloseForm: () => this.closeManualForm(),
+        onView: () => this.viewEquipment(eq),
+        onStartEdit: () => { this.openEditModal(eq); this.setState({ manageOpenFor: null }); },
+        vin: (equipmentInfo[eq] || {}).vin || '',
+        hasVin: !!(equipmentInfo[eq] || {}).vin,
+        categoryColor: categoryColors[equipmentCategory[eq] || 'Other'] || 'var(--color-neutral-500)',
+        confirmingDelete: confirmDeleteFor === eq,
+        onDelete: () => this.setState({ confirmDeleteFor: eq, manageOpenFor: null }),
+        onConfirmDelete: () => this.deleteEquipment(eq),
+        onCancelDelete: () => this.setState({ confirmDeleteFor: null }),
+        serviceDots: this.serviceDots(eq),
+        manageOpen: manageOpenFor === eq,
+        onToggleManage: () => this.setState((s) => ({ manageOpenFor: s.manageOpenFor === eq ? null : eq })),
+      };
+    });
+
+    const categoryTiles = categories.map((cat) => ({
+      name: cat,
+      color: categoryColors[cat] || 'var(--color-neutral-500)',
+      countLabel: equipment.filter((eq) => (equipmentCategory[eq] || 'Other') === cat).length + ' equipment',
+      onSelect: () => this.setState({ selectedCategory: cat }),
+      onEdit: (e) => { e.stopPropagation(); this.openCategoryEditModal(cat); },
+    }));
+
+    const searchTerm = equipmentSearch.trim().toLowerCase();
+    const searchActive = searchTerm.length > 0;
+    const equipmentToCard = (eq) => {
+      const eqLineItems = invoices.flatMap((inv) => inv.lineItems.filter((li) => li.equipment === eq));
+      const count = eqLineItems.length;
+      const total = eqLineItems.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+      const info = equipmentInfo[eq] || {};
+      const makeModel = [info.make, info.model].filter(Boolean).join(' ');
+      return {
+        name: eq,
+        categoryName: equipmentCategory[eq] || 'Other',
+        categoryColor: categoryColors[equipmentCategory[eq] || 'Other'] || 'var(--color-neutral-500)',
+        countLabel: count + (count === 1 ? ' expense' : ' expenses'),
+        totalFormatted: fmt(total),
+        makeModel,
+        hasMakeModel: !!makeModel,
+        onView: () => this.viewEquipment(eq),
+      };
+    };
+    const alphaSort = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+    const searchResults = searchActive ? equipment.filter((eq) => {
+      const info = equipmentInfo[eq] || {};
+      return eq.toLowerCase().includes(searchTerm) || (info.make || '').toLowerCase().includes(searchTerm) || (info.model || '').toLowerCase().includes(searchTerm);
+    }).sort(alphaSort).map(equipmentToCard) : [];
+    const allEquipmentList = [...equipment].sort(alphaSort).map(equipmentToCard);
+    const adminEquipmentRows = [...equipment].sort(alphaSort).map((eq) => ({
+      name: eq,
+      categoryName: equipmentCategory[eq] || 'Other',
+      confirmingDelete: confirmDeleteFor === eq,
+      onDelete: () => this.setState({ confirmDeleteFor: eq }),
+      onConfirmDelete: () => this.deleteEquipment(eq),
+      onCancelDelete: () => this.setState({ confirmDeleteFor: null }),
+      onEdit: () => this.openEditModal(eq),
+      serviceDots: this.serviceDots(eq),
+    }));
+    const equipmentListMode = this.state.equipmentListMode || 'categories';
+    const showAllEquipmentList = !searchActive && equipmentListMode === 'all';
+    const showCategoryTiles = !searchActive && equipmentListMode === 'categories';
+
+    const categoryEditModalOpen = !!categoryEditModalOpenFor;
+    const editModalOpen = !!editModalOpenFor;
+    const editModal = editModalOpen ? {
+      ...editModalDraft,
+      onNameChange: (e) => this.updateEditModal('name', e.target.value),
+      onVinChange: (e) => this.updateEditModal('vin', e.target.value),
+      onInfoChange: (e) => this.updateEditModal('info', e.target.value),
+      onCategoryChange: (e) => this.updateEditModal('category', e.target.value),
+      onMakeChange: (e) => this.updateEditModal('make', e.target.value),
+      onModelChange: (e) => this.updateEditModal('model', e.target.value),
+      onCancel: () => this.closeEditModal(),
+      onSave: () => this.saveEditModal(editModalOpenFor),
+      saveDisabled: !editModalDraft.name.trim(),
+      services: (editModalDraft.services || []).map((sv, i) => ({
+        ...sv,
+        onNameChange: (e) => this.updateEditServiceRow(i, 'name', e.target.value),
+        onIntervalChange: (e) => this.updateEditServiceRow(i, 'interval', e.target.value),
+        onLastHoursChange: (e) => this.updateEditServiceRow(i, 'lastHours', e.target.value),
+        onRemove: () => this.removeEditServiceRow(i),
+      })),
+      onAddServiceRow: () => this.addEditServiceRow(),
+      filters: editModalDraft.filters.map((f, i) => ({
+        ...f,
+        onTypeChange: (e) => this.updateEditFilterRow(i, 'type', e.target.value),
+        onPartNumberChange: (e) => this.updateEditFilterRow(i, 'partNumber', e.target.value),
+        onRemove: () => this.removeEditFilterRow(i),
+      })),
+      onAddFilterRow: () => this.addEditFilterRow(),
+    } : null;
+
+    const addModal = addModalOpen ? {
+      ...addModalDraft,
+      onNameChange: (e) => this.updateAddModal('name', e.target.value),
+      onVinChange: (e) => this.updateAddModal('vin', e.target.value),
+      onInfoChange: (e) => this.updateAddModal('info', e.target.value),
+      onCategoryChange: (e) => this.updateAddModal('category', e.target.value),
+      onMakeChange: (e) => this.updateAddModal('make', e.target.value),
+      onModelChange: (e) => this.updateAddModal('model', e.target.value),
+      onCancel: () => this.closeAddEquipmentModal(),
+      onSave: () => this.saveAddEquipmentModal(),
+      saveDisabled: !addModalDraft.name.trim() || equipment.includes(addModalDraft.name.trim()),
+      filters: addModalDraft.filters.map((f, i) => ({
+        ...f,
+        onTypeChange: (e) => this.updateAddFilterRow(i, 'type', e.target.value),
+        onPartNumberChange: (e) => this.updateAddFilterRow(i, 'partNumber', e.target.value),
+        onRemove: () => this.removeAddFilterRow(i),
+      })),
+      onAddFilterRow: () => this.addAddFilterRow(),
+      services: (addModalDraft.services || []).map((sv, i) => ({
+        ...sv,
+        onNameChange: (e) => this.updateAddServiceRow(i, 'name', e.target.value),
+        onIntervalChange: (e) => this.updateAddServiceRow(i, 'interval', e.target.value),
+        onLastHoursChange: (e) => this.updateAddServiceRow(i, 'lastHours', e.target.value),
+        onRemove: () => this.removeAddServiceRow(i),
+      })),
+      onAddServiceRow: () => this.addAddServiceRow(),
+    } : null;
+
+    const detailItems = [];
+    if (detailEquipment) {
+      invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === detailEquipment) detailItems.push({ ...li, fileName: inv.fileName, invoiceId: inv.id }); }));
+      detailItems.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    }
+    const detailNotesRaw = detailEquipment ? (notes[detailEquipment] || []) : [];
+    const info = detailEquipment ? (equipmentInfo[detailEquipment] || {}) : {};
+    const detailFilters = detailEquipment ? (equipmentFilters[detailEquipment] || []) : [];
+    const detailTotal = detailItems.reduce((s, i) => s + (parseFloat(i.totalCost) || 0), 0);
+    const detailServicesRaw = detailEquipment ? ((this.state.equipmentService || {})[detailEquipment] || []) : [];
+    const curMeter = parseFloat(((this.state.equipmentHours || {})[detailEquipment] || {}).end);
+    const detailServices = detailServicesRaw.map((sv, i) => {
+      const interval = parseFloat(sv.interval);
+      const last = parseFloat(sv.lastHours);
+      const known = !isNaN(interval) && interval > 0 && !isNaN(last) && !isNaN(curMeter);
+      const used = known ? Math.max(0, curMeter - last) : 0;
+      const pct = known ? used / interval : 0;
+      const st = known ? this.serviceStatus(pct) : { color: 'var(--color-neutral-500)', label: 'Not set' };
+      const remaining = known ? interval - used : 0;
+      return {
+        name: sv.name,
+        color: st.color,
+        statusLabel: st.label,
+        pctWidth: Math.min(100, Math.round(pct * 100)) + '%',
+        detailLabel: known
+          ? (remaining >= 0
+              ? Math.round(used) + ' / ' + Math.round(interval) + ' hrs · ' + Math.round(remaining) + ' hrs left'
+              : Math.round(used) + ' / ' + Math.round(interval) + ' hrs · ' + Math.round(-remaining) + ' hrs over')
+          : 'Set interval, last-change hours and current meter',
+        onLogService: () => this.logService(detailEquipment, i),
+      };
+    });
+    const hourRec = (detailEquipment && (this.state.equipmentHours || {})[detailEquipment]) || { start: '', end: '' };
+    const hStart = parseFloat(hourRec.start);
+    const hEnd = parseFloat(hourRec.end);
+    let hoursRun = null;
+    let hourWarningText = '';
+    if (!isNaN(hStart) && !isNaN(hEnd)) {
+      hoursRun = hEnd - hStart;
+      if (hoursRun < 0) { hoursRun = null; hourWarningText = 'Ending hours must be higher than starting hours.'; }
+      else if (hoursRun === 0) { hourWarningText = 'Enter an ending hour reading higher than the start to get a rate.'; }
+    } else {
+      hourWarningText = 'Enter the hour-meter reading at the start and end of the period to see cost per hour.';
+    }
+    const detail = {
+      name: detailEquipment || '',
+      vin: info.vin || '',
+      hasVin: !!info.vin,
+      make: info.make || '',
+      model: info.model || '',
+      hasMakeModel: !!(info.make || info.model),
+      infoNote: info.info || '',
+      hasInfoNote: !!info.info,
+      filters: detailFilters,
+      hasFilters: detailFilters.length > 0,
+      items: detailItems.map((i) => ({ ...i, totalFormatted: fmt(i.totalCost), onRemove: () => this.removeLineItem(i.invoiceId, i.id) })),
+      hasItems: detailItems.length > 0,
+      totalFormatted: fmt(detailTotal),
+      hourStart: hourRec.start || '',
+      hourEnd: hourRec.end || '',
+      onHourStartChange: (e) => this.setEquipmentHours(detailEquipment, 'start', e.target.value),
+      onHourEndChange: (e) => this.setEquipmentHours(detailEquipment, 'end', e.target.value),
+      hoursRunLabel: hoursRun !== null ? hoursRun.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' hrs' : '—',
+      costPerHourLabel: hoursRun && hoursRun > 0 ? fmt(detailTotal / hoursRun) + ' / hr' : '—',
+      onOpenHourCalc: () => this.setState({ hourCalcOpen: true }),
+      services: detailServices,
+      hasServices: detailServices.length > 0,
+      noServices: detailServices.length === 0,
+      currentHours: hourRec.end || '',
+      onCurrentHoursChange: (e) => this.setEquipmentHours(detailEquipment, 'end', e.target.value),
+      hourWarning: !!hourWarningText,
+      hourWarningText,
+      noteText, noteDate,
+      onNoteTextChange: (e) => this.setState({ noteText: e.target.value }),
+      onNoteDateChange: (e) => this.setState({ noteDate: e.target.value }),
+      onAddNote: () => this.addNote(),
+      addNoteDisabled: !noteText.trim(),
+      notes: detailNotesRaw.map((n) => ({ ...n, hasDate: !!n.date, onRemove: () => this.removeNote(detailEquipment, n.id) })),
+      onEdit: () => this.openEditModal(detailEquipment),
+    };
+
+    const years = this.getYears(invoices);
+    const selectedYear = year || years[0];
+    const yearlyRaw = equipment.map((eq) => {
+      let total = 0;
+      invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === eq && li.date && li.date.slice(0, 4) === String(selectedYear)) total += parseFloat(li.totalCost) || 0; }));
+      const info = equipmentInfo[eq] || {};
+      return { name: eq, total, category: equipmentCategory[eq] || 'Other', make: info.make || '', model: info.model || '' };
+    });
+
+    const categoryAgg = {};
+    equipment.forEach((eq) => {
+      const cat = equipmentCategory[eq] || 'Other';
+      let total = 0;
+      invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === eq && li.date && li.date.slice(0, 4) === String(selectedYear)) total += parseFloat(li.totalCost) || 0; }));
+      categoryAgg[cat] = (categoryAgg[cat] || 0) + total;
+    });
+    const categoryRaw = Object.keys(categoryAgg).map((cat) => ({ name: cat, total: categoryAgg[cat], color: categoryColors[cat] || 'var(--color-neutral-500)' }));
+
+    const vendorAgg = {};
+    invoices.forEach((inv) => inv.lineItems.forEach((li) => {
+      if (!li.date || li.date.slice(0, 4) !== String(selectedYear)) return;
+      const vendor = li.vendor && li.vendor.trim() ? li.vendor.trim() : 'Unknown vendor';
+      vendorAgg[vendor] = (vendorAgg[vendor] || 0) + (parseFloat(li.totalCost) || 0);
+    }));
+    const vendorRaw = Object.keys(vendorAgg).map((v) => ({ name: v, total: vendorAgg[v] }));
+
+    const groupSource = yearlyGroupMode === 'category' ? categoryRaw : yearlyGroupMode === 'vendor' ? vendorRaw : yearlyRaw;
+    const yearlySearchTerm = yearlySearch.trim().toLowerCase();
+    const groupFiltered = yearlySearchTerm ? groupSource.filter((r) => {
+      if (yearlyGroupMode === 'equipment') return r.name.toLowerCase().includes(yearlySearchTerm) || r.make.toLowerCase().includes(yearlySearchTerm) || r.model.toLowerCase().includes(yearlySearchTerm);
+      return r.name.toLowerCase().includes(yearlySearchTerm);
+    }) : groupSource;
+    let yearlySorted;
+    if (yearlySortMode === 'alpha') {
+      yearlySorted = [...groupFiltered].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (yearlySortMode === 'least') {
+      yearlySorted = [...groupFiltered].sort((a, b) => a.total - b.total);
+    } else if (yearlyGroupMode === 'equipment' && (yearlySortMode === 'category' || yearlySortMode === 'mostPerCategory')) {
+      yearlySorted = [...groupFiltered].sort((a, b) => a.category.localeCompare(b.category) || b.total - a.total);
+    } else {
+      yearlySorted = [...groupFiltered].sort((a, b) => b.total - a.total);
+    }
+    const maxYearly = Math.max(1, ...groupFiltered.map((r) => r.total));
+    const yearlyRows = yearlySorted.map((r) => ({ ...r, totalFormatted: fmt(r.total), barWidth: Math.round((r.total / maxYearly) * 100) + '%', barColor: yearlyGroupMode === 'category' ? r.color : yearlyGroupMode === 'equipment' ? (categoryColors[r.category] || 'var(--color-accent)') : 'var(--color-accent)', onView: yearlyGroupMode === 'equipment' ? (() => this.viewEquipment(r.name)) : undefined }));
+    const yearlyGrandTotal = fmt(groupFiltered.reduce((s, r) => s + r.total, 0));
+
+    const dashYear = dashboardYear || years[0];
+    const dashRaw = equipment.map((eq) => {
+      let total = 0;
+      invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === eq && li.date && li.date.slice(0, 4) === String(dashYear)) total += parseFloat(li.totalCost) || 0; }));
+      return { name: eq, total };
+    }).sort((a, b) => b.total - a.total);
+    const dashTop5 = dashRaw.slice(0, 5);
+    const maxDash = Math.max(1, ...dashTop5.map((r) => r.total));
+    const dashboardTopRows = dashTop5.map((r, i) => ({ rank: i + 1, name: r.name, total: r.total, totalFormatted: fmt(r.total), barWidth: Math.round((r.total / maxDash) * 100) + '%', barColor: categoryColors[equipmentCategory[r.name] || 'Other'] || 'var(--color-accent)' }));
+    const dashboardTotalFormatted = fmt(dashRaw.reduce((s, r) => s + r.total, 0));
+
+    const catTotalsRaw = categories.map((cat) => {
+      let total = 0;
+      equipment.forEach((eq) => {
+        if ((equipmentCategory[eq] || 'Other') !== cat) return;
+        invoices.forEach((inv) => inv.lineItems.forEach((li) => { if (li.equipment === eq && li.date && li.date.slice(0, 4) === String(dashYear)) total += parseFloat(li.totalCost) || 0; }));
+      });
+      return { name: cat, total, color: categoryColors[cat] || 'var(--color-neutral-500)' };
+    }).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
+    const catGrandTotal = catTotalsRaw.reduce((s, c) => s + c.total, 0) || 1;
+    let acc = 0;
+    const categoryPieLegend = catTotalsRaw.map((c) => {
+      const pct = c.total / catGrandTotal;
+      const seg = { name: c.name, total: c.total, totalFormatted: fmt(c.total), pctLabel: Math.round(pct * 100) + '%', color: c.color, start: acc * 360, end: (acc + pct) * 360 };
+      acc += pct;
+      return seg;
+    });
+    const categoryPieGradient = categoryPieLegend.length
+      ? 'conic-gradient(' + categoryPieLegend.map((c) => c.color + ' ' + c.start.toFixed(1) + 'deg ' + c.end.toFixed(1) + 'deg').join(', ') + ')'
+      : 'var(--color-neutral-100)';
+
+    return {
+      isDashboard: view === 'dashboard',
+      isUpload: view === 'upload', isHistory: view === 'history', isYearly: view === 'yearly',
+      dashboardBtnClass: 'btn ' + (view === 'dashboard' ? 'btn-primary' : 'btn-ghost'),
+      uploadBtnClass: 'btn ' + (view === 'upload' ? 'btn-primary' : 'btn-ghost'),
+      historyBtnClass: 'btn ' + (view === 'history' ? 'btn-primary' : 'btn-ghost'),
+      yearlyBtnClass: 'btn ' + (view === 'yearly' ? 'btn-primary' : 'btn-ghost'),
+      settingsBtnClass: 'btn ' + (view === 'settings' ? 'btn-primary' : 'btn-ghost'),
+      isSettings: view === 'settings',
+      onSettingsClick: () => this.onSettingsClick(),
+      settingsPasswordModalOpen,
+      settingsPasswordInput,
+      settingsPasswordError,
+      onSettingsPasswordChange: (e) => this.setState({ settingsPasswordInput: e.target.value, settingsPasswordError: false }),
+      onSettingsPasswordSubmit: () => this.submitSettingsPassword(),
+      onSettingsPasswordCancel: () => this.setState({ settingsPasswordModalOpen: false, settingsPasswordInput: '', settingsPasswordError: false }),
+      newYearConfirming,
+      newYearConfirmClosed: !newYearConfirming,
+      onStartNewYearClick: () => this.setState({ newYearConfirming: true }),
+      onConfirmNewYear: () => this.startNewYear(),
+      onCancelNewYear: () => this.setState({ newYearConfirming: false }),
+      setViewDashboard: () => this.setState({ view: 'dashboard' }),
+      setViewUpload: () => this.setState({ view: 'upload' }),
+      setViewHistory: () => this.setState({ view: 'history' }),
+      setViewYearly: () => this.setState({ view: 'yearly' }),
+      dashboardYear: dashYear,
+      dashboardYearVal: dashYear,
+      onDashboardYearChange: (e) => this.setState({ dashboardYear: parseInt(e.target.value, 10) }),
+      dashboardTopRows,
+      dashboardTotalFormatted,
+      categoryPieGradient,
+      categoryPieLegend,
+      pieTip: !!this.state.pieTip,
+      pieTipName: this.state.pieTip ? this.state.pieTip.name : '',
+      pieTipTotal: this.state.pieTip ? this.state.pieTip.totalFormatted : '',
+      pieTipPct: this.state.pieTip ? this.state.pieTip.pctLabel : '',
+      pieTipLeft: this.state.pieTip ? this.state.pieTip.x + 'px' : '0px',
+      pieTipTop: this.state.pieTip ? (this.state.pieTip.y - 12) + 'px' : '0px',
+      onPieMove: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const cx = r.width / 2, cy = r.height / 2;
+        const x = e.clientX - r.left, y = e.clientY - r.top;
+        const dx = x - cx, dy = y - cy;
+        if (Math.sqrt(dx * dx + dy * dy) > cx) { if (this.state.pieTip) this.setState({ pieTip: null }); return; }
+        let deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        const seg = categoryPieLegend.find((c) => deg >= c.start && deg < c.end) || categoryPieLegend[categoryPieLegend.length - 1];
+        if (!seg) return;
+        this.setState({ pieTip: { name: seg.name, totalFormatted: seg.totalFormatted, pctLabel: seg.pctLabel, x, y } });
+      },
+      onPieLeave: () => this.setState({ pieTip: null }),
+      addModeIsUpload: addExpenseMode === 'upload',
+      addModeIsManual: addExpenseMode === 'manual',
+      addModeUploadBtnClass: 'btn ' + (addExpenseMode === 'upload' ? 'btn-primary' : 'btn-ghost'),
+      addModeManualBtnClass: 'btn ' + (addExpenseMode === 'manual' ? 'btn-primary' : 'btn-ghost'),
+      setAddModeUpload: () => this.setState({ addExpenseMode: 'upload' }),
+      setAddModeManual: () => this.setState({ addExpenseMode: 'manual' }),
+      addModeIsAll: addExpenseMode === 'all',
+      addModeAllBtnClass: 'btn ' + (addExpenseMode === 'all' ? 'btn-primary' : 'btn-ghost'),
+      setAddModeAll: () => this.setState({ addExpenseMode: 'all' }),
+      goUploadInvoice: () => this.setState({ view: 'upload', addExpenseMode: 'upload' }),
+      goManualExpense: () => this.setState({ view: 'upload', addExpenseMode: 'manual' }),
+      ...this.allExpenseVals(invoices, fmt),
+      standaloneRows,
+      standaloneSaveDisabled,
+      onAddStandaloneRow: () => this.addStandaloneRow(),
+      onSaveAllStandalone: () => this.saveAllStandaloneRows(),
+      isDetail: view === 'detail',
+      detail,
+      hourCalcOpen: this.state.hourCalcOpen && view === 'detail' && !!detailEquipment,
+      onCloseHourCalc: () => this.setState({ hourCalcOpen: false }),
+      backToHistory: () => this.setState({ view: 'history' }),
+      editModalOpen,
+      editModal,
+      addModalOpen,
+      addModal,
+      openAddEquipmentModal: () => this.openAddEquipmentModal(),
+      categoryOptions: categories,
+      categoryTiles,
+      categoriesExpanded: !!this.state.categoriesExpanded,
+      categoriesCollapseArrow: this.state.categoriesExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+      onToggleCategoriesCollapsed: () => this.setState((s) => ({ categoriesExpanded: !s.categoriesExpanded })),
+      equipmentSectionExpanded: !!this.state.equipmentSectionExpanded,
+      equipmentSectionCollapseArrow: this.state.equipmentSectionExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+      onToggleEquipmentSectionCollapsed: () => this.setState((s) => ({ equipmentSectionExpanded: !s.equipmentSectionExpanded })),
+      suppliersExpanded: !!this.state.suppliersExpanded,
+      suppliersCollapseArrow: this.state.suppliersExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+      onToggleSuppliersCollapsed: () => this.setState((s) => ({ suppliersExpanded: !s.suppliersExpanded })),
+      backupExpanded: !!this.state.backupExpanded,
+      backupCollapseArrow: this.state.backupExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+      onToggleBackupCollapsed: () => this.setState((s) => ({ backupExpanded: !s.backupExpanded })),
+      onBackupNow: () => this.doBackup(),
+      showBackupBanner: !!this.state.showBackupBanner,
+      onDismissBackupBanner: () => this.setState({ showBackupBanner: false }),
+      backupBannerText: this.state.lastBackupAt ? 'It\'s been a week since your last backup — download a fresh copy.' : 'You haven\'t backed up this device\'s data yet.',
+      lastBackupLabel: this.state.lastBackupAt ? new Date(this.state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never',
+      openSupplierAddModal: () => this.setState({ supplierAddModalOpen: true, supplierAddDraft: '' }),
+      supplierRows: [...suppliers].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).map((sup) => ({
+        name: sup,
+        confirmingDelete: confirmDeleteSupplierFor === sup,
+        onDelete: () => this.setState({ confirmDeleteSupplierFor: sup }),
+        onConfirmDelete: () => this.deleteSupplier(sup),
+        onCancelDelete: () => this.setState({ confirmDeleteSupplierFor: null }),
+        onEdit: () => this.openSupplierEditModal(sup),
+      })),
+      supplierEditModal: supplierEditModalOpenFor ? {
+        name: supplierEditDraft,
+        onNameChange: (e) => this.setState({ supplierEditDraft: e.target.value }),
+        onCancel: () => this.setState({ supplierEditModalOpenFor: null, supplierEditDraft: '' }),
+        onSave: () => this.saveSupplierEdit(),
+        saveDisabled: !supplierEditDraft.trim(),
+      } : null,
+      supplierOptions: suppliers,
+      supplierAddModal: supplierAddModalOpen ? {
+        name: supplierAddDraft,
+        onNameChange: (e) => this.setState({ supplierAddDraft: e.target.value }),
+        onCancel: () => this.setState({ supplierAddModalOpen: false }),
+        onSave: () => { this.addSupplier(this.state.supplierAddDraft); this.setState({ supplierAddModalOpen: false }); },
+        saveDisabled: !supplierAddDraft.trim(),
+      } : null,
+      categoryEditModalOpen,
+      categoryAddModalOpen,
+      openCategoryAddModal: () => this.openCategoryAddModal(),
+      categoryAddModal: categoryAddModalOpen ? {
+        name: categoryAddDraft.name,
+        onNameChange: (e) => this.setState((s) => ({ categoryAddDraft: { ...s.categoryAddDraft, name: e.target.value } })),
+        onCancel: () => this.closeCategoryAddModal(),
+        onSave: () => this.saveCategoryAdd(),
+        saveDisabled: !categoryAddDraft.name.trim() || categories.includes(categoryAddDraft.name.trim()),
+        swatches: Component.COLOR_SWATCHES.map((sw) => ({ color: sw, borderStyle: sw === categoryAddDraft.color ? '3px solid var(--color-text)' : '3px solid transparent', onSelect: () => this.setState((s) => ({ categoryAddDraft: { ...s.categoryAddDraft, color: sw } })) })),
+      } : null,
+      categoryEditModal: categoryEditModalOpen ? {
+        name: categoryEditDraft,
+        color: categoryEditColorDraft,
+        onNameChange: (e) => this.setState({ categoryEditDraft: e.target.value }),
+        onCancel: () => this.closeCategoryEditModal(),
+        onSave: () => this.saveCategoryEdit(),
+        saveDisabled: !categoryEditDraft.trim(),
+        swatches: Component.COLOR_SWATCHES.map((sw) => ({ color: sw, selected: sw === categoryEditColorDraft, borderStyle: sw === categoryEditColorDraft ? '3px solid var(--color-text)' : '3px solid transparent', onSelect: () => this.setState({ categoryEditColorDraft: sw }) })),
+      } : null,
+      categorySelected: !!selectedCategory,
+      noCategorySelected: !selectedCategory,
+      selectedCategory,
+      backToCategories: () => this.setState({ selectedCategory: null }),
+      equipmentSearch,
+      onEquipmentSearchChange: (e) => this.setState({ equipmentSearch: e.target.value }),
+      searchActive,
+      noSearchActive: !searchActive,
+      searchResults,
+      searchHasResults: searchResults.length > 0,
+      searchHasNoResults: searchActive && searchResults.length === 0,
+      allEquipmentList,
+      showAllEquipmentList,
+      showCategoryTiles,
+      allListBtnClass: 'btn ' + (equipmentListMode === 'all' ? 'btn-primary' : 'btn-ghost'),
+      categoriesBtnClass: 'btn ' + (equipmentListMode === 'categories' ? 'btn-primary' : 'btn-ghost'),
+      onShowAllList: () => this.setState({ equipmentListMode: 'all' }),
+      onShowCategories: () => this.setState({ equipmentListMode: 'categories' }),
+      isAdmin: settingsUnlocked,
+      adminEquipmentRows,
+      onFileChange: (e) => this.handleFile(e),
+      hasPending: !!pendingInvoice,
+      noPending: !pendingInvoice,
+      pendingFileName: pendingInvoice ? pendingInvoice.fileName : '',
+      pendingPreviewImg: pendingInvoice && pendingInvoice.dataUrl
+        ? React.createElement('img', { src: pendingInvoice.dataUrl, style: { width: '100%', display: 'block' } })
+        : null,
+      pendingIsImage: pendingInvoice ? pendingInvoice.mimeType.startsWith('image') : false,
+      pendingIsPdf: pendingInvoice ? pendingInvoice.mimeType === 'application/pdf' : false,
+      extracting: pendingInvoice ? !!pendingInvoice.extracting : false,
+      extractStatusText: pendingInvoice ? (pendingInvoice.status || 'Reading invoice…') : '',
+      extractError: pendingInvoice ? !!pendingInvoice.error : false,
+      extractErrorText: pendingInvoice ? (pendingInvoice.error || '') : '',
+      pendingRows,
+      hasPendingRows: pendingRows.length > 0,
+      addRow: () => this.addPendingRow(),
+      cancelPending: () => this.setState({ pendingInvoice: null }),
+      saveInvoice: () => this.saveInvoice(),
+      saveDisabled: this.isSaveDisabled(),
+      equipmentOptions: equipment.map((e) => ({ value: e, label: e })),
+      historyGroups,
+      years: years.map((y) => ({ value: y, label: String(y) })),
+      selectedYear,
+      onYearChange: (e) => this.setState({ year: parseInt(e.target.value, 10) }),
+      yearlyRows,
+      yearlyGrandTotal,
+      yearlySortMode,
+      onYearlySortChange: (e) => this.setState({ yearlySortMode: e.target.value }),
+      yearlyGroupMode,
+      yearlyModeIsEquipment: yearlyGroupMode === 'equipment',
+      yearlyIdentityLabel: yearlyGroupMode === 'category' ? 'Category' : yearlyGroupMode === 'vendor' ? 'Vendor' : 'Equipment',
+      yearlyModeEquipmentBtnClass: 'btn ' + (yearlyGroupMode === 'equipment' ? 'btn-primary' : 'btn-ghost'),
+      yearlyModeCategoryBtnClass: 'btn ' + (yearlyGroupMode === 'category' ? 'btn-primary' : 'btn-ghost'),
+      yearlyModeVendorBtnClass: 'btn ' + (yearlyGroupMode === 'vendor' ? 'btn-primary' : 'btn-ghost'),
+      setYearlyModeEquipment: () => this.setState({ yearlyGroupMode: 'equipment' }),
+      setYearlyModeCategory: () => this.setState({ yearlyGroupMode: 'category' }),
+      setYearlyModeVendor: () => this.setState({ yearlyGroupMode: 'vendor' }),
+      yearlySearch,
+      onYearlySearchChange: (e) => this.setState({ yearlySearch: e.target.value }),
+      yearlySearchPlaceholder: yearlyGroupMode === 'equipment' ? 'Search by name, make, or model…' : yearlyGroupMode === 'category' ? 'Search categories…' : 'Search vendors…',
+      newEquipmentName,
+      onNewEquipmentChange: (e) => this.setState({ newEquipmentName: e.target.value }),
+      addEquipment: () => this.addEquipment(),
+      addEquipmentDisabled: !newEquipmentName.trim(),
+      ...this.analyticsVals(invoices, years, fmt),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
