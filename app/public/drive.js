@@ -50,13 +50,25 @@ const Drive = (() => {
   }
 
   async function findBackupFile(token, folderId) {
+    const meta = await findBackupFileMeta(token, folderId);
+    return meta ? meta.id : null;
+  }
+
+  async function findBackupFileMeta(token, folderId) {
     let q = `name='${FILE_NAME}' and trashed=false`;
     if (folderId) q += ` and '${folderId}' in parents`;
-    const res = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&spaces=drive&fields=files(id,name)', {
+    const res = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&spaces=drive&fields=files(id,name,modifiedTime)', {
       headers: { Authorization: 'Bearer ' + token },
     });
     const data = await res.json();
-    return (data.files && data.files[0]) ? data.files[0].id : null;
+    return (data.files && data.files[0]) || null;
+  }
+
+  async function downloadFile(token, fileId) {
+    const res = await apiFetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    return res.json();
   }
 
   async function createBackupFile(token, content, folderId) {
@@ -104,6 +116,20 @@ const Drive = (() => {
     const foundId = await findBackupFile(token, folderId);
     if (foundId) { await updateBackupFile(token, foundId, content); return foundId; }
     return createBackupFile(token, content, folderId);
+  }
+
+  // Looks for an existing backup file without touching local data — used to
+  // check "is there already something in Drive?" before ever overwriting it.
+  // Resolves to {id, name, modifiedTime} or null.
+  async function checkBackup(clientId, folderId, interactive) {
+    const token = await requestToken(clientId, interactive);
+    return findBackupFileMeta(token, folderId);
+  }
+
+  // Downloads and parses the backup file's JSON content.
+  async function restore(clientId, fileId, interactive) {
+    const token = await requestToken(clientId, interactive);
+    return downloadFile(token, fileId);
   }
 
   function loadPickerApi() {
@@ -158,5 +184,5 @@ const Drive = (() => {
 
   function reset() { tokenClient = null; tokenClientId = null; }
 
-  return { backup, pickFolder, reset };
+  return { backup, checkBackup, restore, pickFolder, reset };
 })();

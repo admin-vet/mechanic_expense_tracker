@@ -77,6 +77,16 @@ Drive version of the same thing (see below) — once that's connected, it also
 **auto-saves to Drive every 15 seconds** whenever there's something new to save, so you
 don't have to remember to click anything.
 
+**Using this on more than one device:** click **"Load from Google Drive"** in Settings →
+Backup on the other device (same Client ID) to pull down whatever was last saved — that's
+how the same invoices stay searchable no matter which computer or phone you open the app
+on. The first time any device talks to Drive each session, it checks whether a backup
+already exists there *before* doing anything else: if one does, it stops and asks
+("Found a backup from … — Load it, or keep this device's data?") instead of letting
+auto-save silently overwrite it. That's what protects you from a brand-new device (which
+starts out with just the default sample equipment) wiping out a real backup the moment
+auto-save's first 15-second tick fires.
+
 ### Google Drive backup
 
 Settings → Backup also has a Google Drive option, so a backup survives clearing the

@@ -56,6 +56,7 @@
     driveAppId: '', driveAppIdDraft: '',
     driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
     driveConnected: false, driveBusy: false, driveMessage: '', driveToast: '',
+    driveRestorePrompt: null, driveRestoreDismissed: false, driveRestoreConfirming: false,
   };
 
   // ---------------------------------------------------------------- local data store
@@ -99,6 +100,34 @@
     } catch (e) { /* storage unavailable — data stays in memory for this session */ }
   }
 
+  // Replaces local data with a downloaded backup. Backups don't carry `nextId`,
+  // so it's recomputed from the highest id actually present (equipment,
+  // categories, suppliers, invoices, and their nested filters/services/notes/
+  // line items all share the same id sequence).
+  function applyRestoredData(data) {
+    if (!data || typeof data !== 'object') throw new Error("That backup file doesn't look valid.");
+    state.categories = Array.isArray(data.categories) ? data.categories : [];
+    state.suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
+    state.equipment = Array.isArray(data.equipment) ? data.equipment : [];
+    state.invoices = Array.isArray(data.invoices) ? data.invoices : [];
+    let maxId = 0;
+    const scan = (v) => { if (v && typeof v.id === 'number' && v.id > maxId) maxId = v.id; };
+    state.categories.forEach(scan);
+    state.suppliers.forEach(scan);
+    state.equipment.forEach((e) => {
+      scan(e);
+      (e.filters || []).forEach(scan);
+      (e.services || []).forEach(scan);
+      (e.notes || []).forEach(scan);
+    });
+    state.invoices.forEach((inv) => {
+      scan(inv);
+      (inv.lineItems || []).forEach(scan);
+    });
+    nextId = maxId + 1;
+    persistDB();
+  }
+
   const DRIVE_KEY = 'farmFleetExpenses_drive_v1';
 
   function persistDriveConfig() {
@@ -129,6 +158,73 @@
       state.driveFolderName = data.folderName || '';
       state.driveLastBackupAt = data.lastBackupAt || null;
     } catch (e) { /* ignore */ }
+  }
+
+  // Runs once per page load, the first time anything tries to talk to Drive
+  // (a manual backup click or the auto-save tick). If a backup already exists
+  // there, it stops everything and asks the user to choose, instead of
+  // silently overwriting it — this is what stops a brand-new device (which
+  // starts out with only the default seed data) from clobbering a real
+  // backup within the first 15-second auto-save tick. Returns true once it's
+  // safe for the caller to proceed with its own backup/restore call.
+  let driveCheckedThisSession = false;
+  async function ensureDriveConnectionChecked(interactive) {
+    if (driveCheckedThisSession) return !state.driveRestorePrompt;
+    driveCheckedThisSession = true;
+    const meta = await Drive.checkBackup(state.driveClientId, state.driveFolderId, interactive);
+    state.driveConnected = true;
+    if (meta && meta.id) {
+      state.driveFileId = meta.id;
+      persistDriveConfig();
+      if (!state.driveRestoreDismissed) {
+        state.driveRestorePrompt = { fileId: meta.id, modifiedTime: meta.modifiedTime };
+        render();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function performDriveRestore(fileId) {
+    if (state.driveBusy || !state.driveClientId) return;
+    state.driveBusy = true;
+    state.driveMessage = '';
+    render();
+    try {
+      if (!fileId) {
+        const meta = await Drive.checkBackup(state.driveClientId, state.driveFolderId, !state.driveConnected);
+        state.driveConnected = true;
+        driveCheckedThisSession = true;
+        if (!meta || !meta.id) {
+          state.driveMessage = 'No backup found in Google Drive yet.';
+          state.driveBusy = false;
+          render();
+          return;
+        }
+        fileId = meta.id;
+      }
+      const data = await Drive.restore(state.driveClientId, fileId, !state.driveConnected);
+      applyRestoredData(data);
+      driveDirty = false;
+      state.driveFileId = fileId;
+      state.driveConnected = true;
+      state.driveLastBackupAt = new Date().toISOString();
+      state.driveMessage = 'Loaded the latest backup from Google Drive.';
+      state.loadError = '';
+      state.view = 'dashboard';
+      state.selectedCategory = null;
+      state.detailEquipmentId = null;
+      persistDriveConfig();
+      showDriveToast('Loaded from Google Drive.');
+    } catch (err) {
+      const msg = err.message === 'UNAUTHORIZED'
+        ? 'Google Drive access expired or was denied — try again to reconnect.'
+        : ('Restore failed: ' + err.message);
+      state.driveMessage = msg;
+      state.loadError = msg;
+    }
+    state.driveBusy = false;
+    render();
   }
 
   function loadDB() {
@@ -418,10 +514,24 @@
       <div style="min-height:100vh;display:flex;flex-direction:column;">
         ${renderNav()}
         ${state.showBackupBanner ? renderBackupBanner() : ''}
+        ${state.driveRestorePrompt ? renderDriveRestorePrompt() : ''}
         ${state.loadError ? renderErrorBanner() : ''}
         ${state.driveToast ? renderDriveToast() : ''}
         ${renderView()}
         ${renderModals()}
+      </div>
+    `;
+  }
+
+  function renderDriveRestorePrompt() {
+    const when = state.driveRestorePrompt.modifiedTime ? new Date(state.driveRestorePrompt.modifiedTime).toLocaleString() : 'earlier';
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 32px;background:var(--color-accent-100);border-bottom:2px solid var(--color-accent);flex-wrap:wrap;">
+        <div style="font-size:14px;">Found a Google Drive backup from ${esc(when)}. Load it to match your other devices?</div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn btn-primary" data-action="loadDriveBackupFromPrompt">Load it</button>
+          <button class="btn btn-ghost" data-action="dismissDriveRestorePrompt">Keep this device's data</button>
+        </div>
       </div>
     `;
   }
@@ -1328,10 +1438,18 @@
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
+          <button class="btn btn-secondary" data-action="confirmDriveRestoreClick" ${state.driveBusy ? 'disabled' : ''}>Load from Google Drive</button>
           <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !canChooseFolder ? 'disabled' : ''} title="${canChooseFolder ? '' : 'Add a Google API key and project number below to enable this'}">Choose folder…</button>
           ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
           <button class="btn btn-ghost" data-action="disconnectDrive">Forget Client ID</button>
         </div>
+        ${state.driveRestoreConfirming ? `
+          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="color:var(--color-accent-700);">This replaces everything on this device with what's saved in Google Drive. Any local changes not yet backed up will be lost.</div>
+            <button class="btn btn-primary" data-action="doDriveRestore">Yes, load from Drive</button>
+            <button class="btn btn-ghost" data-action="cancelDriveRestore">Cancel</button>
+          </div>
+        ` : ''}
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
           <div class="field" style="flex:1;min-width:220px;">
             <label>Google API key ${state.driveApiKey ? '(set)' : '(needed for "Choose folder…")'}</label>
@@ -1714,6 +1832,9 @@
       state.driveFolderName = '';
       state.driveConnected = false;
       state.driveMessage = '';
+      state.driveRestorePrompt = null;
+      state.driveRestoreDismissed = false;
+      driveCheckedThisSession = false;
       persistDriveConfig();
       render();
     },
@@ -1730,6 +1851,9 @@
           state.driveFolderId = folder.id;
           state.driveFolderName = folder.name;
           state.driveFileId = ''; // re-resolve (or create fresh) inside the newly chosen folder
+          state.driveRestorePrompt = null;
+          state.driveRestoreDismissed = false;
+          driveCheckedThisSession = false; // a different folder needs its own existence check
           state.driveMessage = 'Backup folder set to "' + folder.name + '".';
           persistDriveConfig();
         }
@@ -1760,6 +1884,8 @@
       state.driveMessage = '';
       render();
       try {
+        const proceed = await ensureDriveConnectionChecked(!state.driveConnected);
+        if (!proceed) { state.driveBusy = false; render(); return; }
         const payload = buildBackupPayload();
         const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, !state.driveConnected, state.driveFolderId);
         state.driveFileId = fileId;
@@ -1780,6 +1906,22 @@
       }
       state.driveBusy = false;
       render();
+    },
+    dismissDriveRestorePrompt() {
+      state.driveRestorePrompt = null;
+      state.driveRestoreDismissed = true;
+      render();
+    },
+    loadDriveBackupFromPrompt() {
+      const fileId = state.driveRestorePrompt && state.driveRestorePrompt.fileId;
+      state.driveRestorePrompt = null;
+      performDriveRestore(fileId);
+    },
+    confirmDriveRestoreClick() { state.driveRestoreConfirming = true; render(); },
+    cancelDriveRestore() { state.driveRestoreConfirming = false; render(); },
+    doDriveRestore() {
+      state.driveRestoreConfirming = false;
+      performDriveRestore(state.driveFileId);
     },
 
     setDashboardYear(e) { state.dashboardYear = parseInt(e.target.value, 10); render(); },
@@ -2133,8 +2275,10 @@
   // new to save, and it says nothing at all if the silent token request fails
   // (e.g. no prior interactive connect yet this session).
   async function autoSaveDriveTick() {
-    if (!state.driveClientId || state.driveBusy || !driveDirty) return;
+    if (!state.driveClientId || state.driveBusy || state.driveRestorePrompt) return;
     try {
+      const proceed = await ensureDriveConnectionChecked(false);
+      if (!proceed || !driveDirty) return;
       const payload = buildBackupPayload();
       const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, false, state.driveFolderId);
       state.driveFileId = fileId;
