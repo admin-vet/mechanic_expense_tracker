@@ -43,7 +43,7 @@
     settingsUnlocked: false, settingsPasswordModalOpen: false, settingsPasswordInput: '', settingsPasswordError: false,
     settingsPassword: '1234', changePasswordDraft: '',
 
-    categoriesExpanded: false, equipmentSectionExpanded: false, suppliersExpanded: false, backupExpanded: false,
+    settingsTab: 'general',
     newYearConfirming: false,
 
     year: null,
@@ -1270,16 +1270,12 @@
 
   // ---------------------------------------------------------------- settings
 
-  function collapseSection(key, label, addBtnHtml, bodyHtml, expanded) {
+  function settingsSectionHeader(label, addBtnHtml) {
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:32px 0 16px;">
-        <button class="btn btn-secondary" style="display:flex;align-items:center;gap:8px;font-size:18px;padding:10px 18px;" data-action="toggleSection" data-key="${key}">
-          <span style="display:inline-block;transition:transform 0.15s;transform:${expanded ? 'rotate(90deg)' : 'rotate(0deg)'};">▸</span>
-          <span>${label}</span>
-        </button>
-        ${addBtnHtml}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="font-size:20px;margin:0;">${label}</h2>
+        ${addBtnHtml || ''}
       </div>
-      ${expanded ? bodyHtml : ''}
     `;
   }
 
@@ -1300,9 +1296,9 @@
             project ID or the Client ID). Optional: without these, backups go to the root of "My Drive".
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;">
-            <div class="field"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
-            <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
-            <div class="field"><label>Google Cloud project number (needed alongside the API key)</label><input class="input" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="e.g. 123456789012"></div>
+            <div class="field"><label>Google OAuth Client ID</label><input class="input" id="drive-setup-client-id" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
+            <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" id="drive-setup-api-key" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
+            <div class="field"><label>Google Cloud project number (needed alongside the API key)</label><input class="input" id="drive-setup-app-id" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="e.g. 123456789012"></div>
             <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
           </div>
         </div>
@@ -1324,11 +1320,11 @@
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
           <div class="field" style="flex:1;min-width:220px;">
             <label>Google API key ${state.driveApiKey ? '(set)' : '(needed for "Choose folder…")'}</label>
-            <input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="${state.driveApiKey ? '••••••••••••' : 'AIza…'}">
+            <input class="input" id="drive-api-key" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="${state.driveApiKey ? '••••••••••••' : 'AIza…'}">
           </div>
           <div class="field" style="flex:1;min-width:220px;">
             <label>Google Cloud project number ${state.driveAppId ? '(set)' : '(needed for "Choose folder…")'}</label>
-            <input class="input" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="${state.driveAppId ? state.driveAppId : 'e.g. 123456789012'}">
+            <input class="input" id="drive-app-id" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="${state.driveAppId ? state.driveAppId : 'e.g. 123456789012'}">
           </div>
           <div><button class="btn btn-secondary" data-action="saveDriveApiKey" ${!state.driveApiKeyDraft.trim() && !state.driveAppIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
         </div>
@@ -1389,20 +1385,27 @@
           </div>` : ''}
       </div>
     `).join('');
-    return `
-      <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
-        <h1 style="font-size:28px;margin:0 0 24px;">Settings</h1>
+    const TABS = [
+      { key: 'general', label: 'General' },
+      { key: 'categories', label: 'Categories' },
+      { key: 'equipment', label: 'Equipment' },
+      { key: 'suppliers', label: 'Suppliers' },
+      { key: 'backup', label: 'Backup' },
+    ];
+    const tab = TABS.some((t) => t.key === state.settingsTab) ? state.settingsTab : 'general';
 
-        <div class="card" style="margin-bottom:32px;">
+    let body;
+    if (tab === 'general') {
+      body = `
+        <div class="card" style="margin-bottom:24px;">
           <div class="card-title">Settings password</div>
           <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Anyone who knows this password can open Settings. Change it here — it's stored only in this browser.</div>
           <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-            <div class="field" style="flex:1;max-width:240px;"><label>New password</label><input class="input" data-action="setChangePasswordDraft" data-on="input" value="${attr(state.changePasswordDraft)}"></div>
+            <div class="field" style="flex:1;max-width:240px;"><label>New password</label><input class="input" id="change-password-draft" data-action="setChangePasswordDraft" data-on="input" value="${attr(state.changePasswordDraft)}"></div>
             <button class="btn btn-secondary" data-action="saveChangePassword" ${!state.changePasswordDraft.trim() ? 'disabled' : ''}>Update password</button>
           </div>
         </div>
-
-        <div class="card" style="margin-bottom:32px;">
+        <div class="card">
           <div class="card-title">Start a new year</div>
           <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Clears all recorded expenses so the shop can begin tracking a fresh year. Equipment, categories, notes, and filters are kept.</div>
           ${!state.newYearConfirming ? `<button class="btn btn-secondary" data-action="startNewYearClick">Start a new year</button>` : `
@@ -1412,17 +1415,30 @@
               <button class="btn btn-ghost" data-action="cancelNewYear">Cancel</button>
             </div>`}
         </div>
+      `;
+    } else if (tab === 'categories') {
+      body = settingsSectionHeader('Categories', `<button class="btn btn-secondary" data-action="openCategoryAddModal">+ Add category</button>`) + catBody;
+    } else if (tab === 'equipment') {
+      body = settingsSectionHeader('Equipment', `<button class="btn btn-secondary" data-action="openAddEquipmentModal">+ Add equipment</button>`) + eqBody;
+    } else if (tab === 'suppliers') {
+      body = settingsSectionHeader('Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal">+ Add supplier</button>`) + supBody;
+    } else {
+      body = settingsSectionHeader('Backup', `<button class="btn btn-primary" data-action="backupNow">Back up now</button>`) + `
+        <div class="card" style="padding:16px 20px;margin-bottom:16px;">
+          <div style="margin-bottom:8px;">Last local backup: <strong>${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</strong></div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything on this device — every category, equipment record, expense, and supplier. This browser is the only copy of your data, so back up regularly and store the file somewhere safe.</div>
+        </div>
+        ${renderDriveBackupSection()}
+      `;
+    }
 
-        ${collapseSection('categories', 'Categories', `<button class="btn btn-secondary" data-action="openCategoryAddModal" style="width:150px;">+ Add category</button>`, catBody, state.categoriesExpanded)}
-        ${collapseSection('equipment', 'Equipment', `<button class="btn btn-secondary" data-action="openAddEquipmentModal" style="width:150px;">+ Add equipment</button>`, eqBody, state.equipmentSectionExpanded)}
-        ${collapseSection('suppliers', 'Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal" style="width:150px;">+ Add supplier</button>`, supBody, state.suppliersExpanded)}
-        ${collapseSection('backup', 'Backup', `<button class="btn btn-primary" data-action="backupNow">Back up now</button>`, `
-          <div class="card" style="padding:16px 20px;margin-bottom:16px;">
-            <div style="margin-bottom:8px;">Last local backup: <strong>${state.lastBackupAt ? new Date(state.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}</strong></div>
-            <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything on this device — every category, equipment record, expense, and supplier. This browser is the only copy of your data, so back up regularly and store the file somewhere safe.</div>
-          </div>
-          ${renderDriveBackupSection()}
-        `, state.backupExpanded)}
+    return `
+      <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
+        <h1 style="font-size:28px;margin:0 0 20px;">Settings</h1>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid var(--color-divider);">
+          ${TABS.map((t) => `<button class="btn ${tab === t.key ? 'btn-primary' : 'btn-ghost'}" data-action="setSettingsTab" data-tab="${t.key}">${t.label}</button>`).join('')}
+        </div>
+        ${body}
       </div>
     `;
   }
@@ -1433,8 +1449,8 @@
     return `
       ${(filters || []).map((f, i) => `
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Filter type (e.g. Air, Oil, Fuel)" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="type" data-on="input" value="${attr(f.type)}">
-          <input class="input" style="flex:1 1 0;min-width:0;" placeholder="Part number" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="partNumber" data-on="input" value="${attr(f.partNumber)}">
+          <input class="input" id="${prefix}-filter-${i}-type" style="flex:1 1 0;min-width:0;" placeholder="Filter type (e.g. Air, Oil, Fuel)" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="type" data-on="input" value="${attr(f.type)}">
+          <input class="input" id="${prefix}-filter-${i}-partNumber" style="flex:1 1 0;min-width:0;" placeholder="Part number" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="partNumber" data-on="input" value="${attr(f.partNumber)}">
           <button class="btn btn-ghost" data-action="${prefix}RemoveFilter" data-index="${i}">Remove</button>
         </div>
       `).join('')}
@@ -1447,9 +1463,9 @@
       <div class="card-meta" style="margin-bottom:10px;">Name the service, how often it is due in hours, and the hour reading at the last change.</div>
       ${(services || []).map((sv, i) => `
         <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
-          <input class="input" style="flex:1 1 auto;min-width:0;" placeholder="e.g. Engine oil" data-action="${prefix}UpdateService" data-index="${i}" data-field="name" data-on="input" value="${attr(sv.name)}">
-          <input class="input" style="width:150px;flex:0 0 auto;" type="number" step="1" placeholder="Every hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="interval" data-on="input" value="${attr(sv.interval)}">
-          <input class="input" style="width:160px;flex:0 0 auto;" type="number" step="0.1" placeholder="Last at hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="lastHours" data-on="input" value="${attr(sv.lastHours)}">
+          <input class="input" id="${prefix}-service-${i}-name" style="flex:1 1 auto;min-width:0;" placeholder="e.g. Engine oil" data-action="${prefix}UpdateService" data-index="${i}" data-field="name" data-on="input" value="${attr(sv.name)}">
+          <input class="input" id="${prefix}-service-${i}-interval" style="width:150px;flex:0 0 auto;" type="number" step="1" placeholder="Every hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="interval" data-on="input" value="${attr(sv.interval)}">
+          <input class="input" id="${prefix}-service-${i}-lastHours" style="width:160px;flex:0 0 auto;" type="number" step="0.1" placeholder="Last at hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="lastHours" data-on="input" value="${attr(sv.lastHours)}">
           <button class="btn btn-ghost" data-action="${prefix}RemoveService" data-index="${i}">Remove</button>
         </div>
       `).join('')}
@@ -1465,16 +1481,16 @@
           <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
             <div class="field"><label>Name</label><input class="input" id="${prefix}-name" data-action="${prefix}Update" data-field="name" data-on="input" value="${attr(draft.name)}" placeholder="e.g. Combine 5"></div>
             <div style="display:flex;gap:16px;">
-              <div class="field" style="flex:1;"><label>Make</label><input class="input" data-action="${prefix}Update" data-field="make" data-on="input" value="${attr(draft.make)}" placeholder="e.g. John Deere"></div>
-              <div class="field" style="flex:1;"><label>Model</label><input class="input" data-action="${prefix}Update" data-field="model" data-on="input" value="${attr(draft.model)}" placeholder="e.g. 9430"></div>
+              <div class="field" style="flex:1;"><label>Make</label><input class="input" id="${prefix}-make" data-action="${prefix}Update" data-field="make" data-on="input" value="${attr(draft.make)}" placeholder="e.g. John Deere"></div>
+              <div class="field" style="flex:1;"><label>Model</label><input class="input" id="${prefix}-model" data-action="${prefix}Update" data-field="model" data-on="input" value="${attr(draft.model)}" placeholder="e.g. 9430"></div>
             </div>
             <div class="field"><label>Category</label>
               <select class="input" data-action="${prefix}Update" data-field="category" data-on="change">
                 ${state.categories.map((c) => `<option value="${attr(c.name)}" ${c.name === draft.category ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
               </select>
             </div>
-            <div class="field"><label>VIN / Serial number</label><input class="input" data-action="${prefix}Update" data-field="vin" data-on="input" value="${attr(draft.vin)}"></div>
-            <div class="field"><label>Notes</label><textarea class="input" rows="3" data-action="${prefix}Update" data-field="info" data-on="input">${esc(draft.info)}</textarea></div>
+            <div class="field"><label>VIN / Serial number</label><input class="input" id="${prefix}-vin" data-action="${prefix}Update" data-field="vin" data-on="input" value="${attr(draft.vin)}"></div>
+            <div class="field"><label>Notes</label><textarea class="input" id="${prefix}-info" rows="3" data-action="${prefix}Update" data-field="info" data-on="input">${esc(draft.info)}</textarea></div>
             <div class="field"><label>Filters</label>${filterRowsHtml(prefix, draft.filters)}</div>
             <div class="field"><label>Service intervals</label>${serviceRowsHtml(prefix, draft.services)}</div>
           </div>
@@ -1493,7 +1509,7 @@
         <div class="dialog">
           <div class="dialog-title">${title}</div>
           <div class="dialog-body">
-            <div class="field"><label>Name</label><input class="input" data-action="${prefix}Update" data-field="name" data-on="input" value="${attr(draft.name)}" placeholder="e.g. Sprayer"></div>
+            <div class="field"><label>Name</label><input class="input" id="${prefix}-name" data-action="${prefix}Update" data-field="name" data-on="input" value="${attr(draft.name)}" placeholder="e.g. Sprayer"></div>
             <div class="field">
               <label>Color</label>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1532,7 +1548,7 @@
         <div class="dialog-backdrop"><div class="dialog">
           <div class="dialog-title">Add supplier</div>
           <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
-            <div class="field"><label>Name</label><input class="input" data-action="supplierAddUpdate" data-on="input" value="${attr(state.supplierAddDraft)}" placeholder="e.g. Ag Parts Co."></div>
+            <div class="field"><label>Name</label><input class="input" id="supplier-add-name" data-action="supplierAddUpdate" data-on="input" value="${attr(state.supplierAddDraft)}" placeholder="e.g. Ag Parts Co."></div>
           </div>
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="supplierAddCancel">Cancel</button><button class="btn btn-primary" data-action="saveSupplierAdd" ${!state.supplierAddDraft.trim() ? 'disabled' : ''}>Add supplier</button></div>
         </div></div>`;
@@ -1542,7 +1558,7 @@
         <div class="dialog-backdrop"><div class="dialog">
           <div class="dialog-title">Rename supplier</div>
           <div class="dialog-body" style="display:flex;flex-direction:column;gap:16px;">
-            <div class="field"><label>Name</label><input class="input" data-action="supplierEditUpdate" data-on="input" value="${attr(state.supplierEditDraft)}"></div>
+            <div class="field"><label>Name</label><input class="input" id="supplier-edit-name" data-action="supplierEditUpdate" data-on="input" value="${attr(state.supplierEditDraft)}"></div>
           </div>
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="supplierEditCancel">Cancel</button><button class="btn btn-primary" data-action="saveSupplierEdit" ${!state.supplierEditDraft.trim() ? 'disabled' : ''}>Save</button></div>
         </div></div>`;
@@ -1552,7 +1568,7 @@
         <div class="dialog-backdrop"><div class="dialog">
           <div class="dialog-title">Enter settings password</div>
           <div class="dialog-body">
-            <div class="field"><label>Password</label><input class="input" type="password" data-action="settingsPasswordChange" data-on="input" value="${attr(state.settingsPasswordInput)}"></div>
+            <div class="field"><label>Password</label><input class="input" id="settings-password-input" type="password" data-action="settingsPasswordChange" data-on="input" value="${attr(state.settingsPasswordInput)}"></div>
             ${state.settingsPasswordError ? `<div style="color:var(--color-accent-700);font-size:13px;">Incorrect password.</div>` : ''}
           </div>
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="settingsPasswordCancel">Cancel</button><button class="btn btn-primary" data-action="settingsPasswordSubmit">Unlock</button></div>
@@ -2027,13 +2043,7 @@
   registerCategoryModalActions('categoryAdd', () => state.categoryAddDraft);
   registerCategoryModalActions('categoryEdit', () => ({ get name() { return state.categoryEditDraft; }, set name(v) { state.categoryEditDraft = v; }, get color() { return state.categoryEditColorDraft; }, set color(v) { state.categoryEditColorDraft = v; } }));
 
-  // Fix toggleSection's key mapping (equipment section uses a distinct state key).
-  Actions.toggleSection = (e, d) => {
-    const map = { categories: 'categoriesExpanded', equipment: 'equipmentSectionExpanded', suppliers: 'suppliersExpanded', backup: 'backupExpanded' };
-    const key = map[d.key];
-    if (key) state[key] = !state[key];
-    render();
-  };
+  Actions.setSettingsTab = (e, d) => { state.settingsTab = d.tab; render(); };
 
   async function extractInvoice(dataUrl, mimeType) {
     const isPdf = mimeType === 'application/pdf';
