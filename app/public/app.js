@@ -54,6 +54,7 @@
     showBackupBanner: false, lastBackupAt: null,
 
     driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
+    driveAppId: '', driveAppIdDraft: '',
     driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
     driveConnected: false, driveBusy: false, driveMessage: '',
   };
@@ -103,6 +104,7 @@
       localStorage.setItem(DRIVE_KEY, JSON.stringify({
         clientId: state.driveClientId,
         apiKey: state.driveApiKey,
+        appId: state.driveAppId,
         fileId: state.driveFileId,
         folderId: state.driveFolderId,
         folderName: state.driveFolderName,
@@ -119,6 +121,7 @@
       const data = JSON.parse(raw);
       state.driveClientId = data.clientId || '';
       state.driveApiKey = data.apiKey || '';
+      state.driveAppId = data.appId || '';
       state.driveFileId = data.fileId || '';
       state.driveFolderId = data.folderId || '';
       state.driveFolderName = data.folderName || '';
@@ -1291,19 +1294,22 @@
             enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
             <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
             The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
-            To pick which folder that file lands in, also create an <strong>API key</strong> on the same credentials page — under
-            "API restrictions" choose "Google Drive API" (there's no separate Picker API to enable), and under
-            "Website restrictions" add this site — and paste it below too. Optional: without it, backups go to the root of "My Drive".
+            To pick which folder that file lands in, also create an <strong>API key</strong> on the same credentials page — enable
+            "Picker API" in the Library, then under "API restrictions" allow both "Picker API" and "Google Drive API" — and paste it
+            below along with your Cloud project's <strong>project number</strong> (shown on the Cloud Console dashboard, not the
+            project ID or the Client ID). Optional: without these, backups go to the root of "My Drive".
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div class="field"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
             <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
+            <div class="field"><label>Google Cloud project number (needed alongside the API key)</label><input class="input" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="e.g. 123456789012"></div>
             <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
           </div>
         </div>
       `;
     }
     const isError = /failed|expired|Add your|Could not/i.test(state.driveMessage || '');
+    const canChooseFolder = state.driveApiKey && state.driveAppId;
     return `
       <div class="card" style="padding:16px 20px;">
         <div class="card-title" style="margin-bottom:8px;">Google Drive backup</div>
@@ -1311,16 +1317,20 @@
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
-          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !state.driveApiKey ? 'disabled' : ''} title="${state.driveApiKey ? '' : 'Add a Google API key below to enable this'}">Choose folder…</button>
+          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !canChooseFolder ? 'disabled' : ''} title="${canChooseFolder ? '' : 'Add a Google API key and project number below to enable this'}">Choose folder…</button>
           ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
           <button class="btn btn-ghost" data-action="disconnectDrive">Forget Client ID</button>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
-          <div class="field" style="flex:1;min-width:240px;">
-            <label>Google API key ${state.driveApiKey ? '(set — enter a new one to replace it)' : '(needed for "Choose folder…")'}</label>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
+          <div class="field" style="flex:1;min-width:220px;">
+            <label>Google API key ${state.driveApiKey ? '(set)' : '(needed for "Choose folder…")'}</label>
             <input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="${state.driveApiKey ? '••••••••••••' : 'AIza…'}">
           </div>
-          <button class="btn btn-secondary" data-action="saveDriveApiKey" ${!state.driveApiKeyDraft.trim() ? 'disabled' : ''}>Save key</button>
+          <div class="field" style="flex:1;min-width:220px;">
+            <label>Google Cloud project number ${state.driveAppId ? '(set)' : '(needed for "Choose folder…")'}</label>
+            <input class="input" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="${state.driveAppId ? state.driveAppId : 'e.g. 123456789012'}">
+          </div>
+          <div><button class="btn btn-secondary" data-action="saveDriveApiKey" ${!state.driveApiKeyDraft.trim() && !state.driveAppIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
         </div>
         ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
       </div>
@@ -1645,13 +1655,16 @@
 
     setDriveClientIdDraft(e) { state.driveClientIdDraft = e.target.value; render(); },
     setDriveApiKeyDraft(e) { state.driveApiKeyDraft = e.target.value; render(); },
+    setDriveAppIdDraft(e) { state.driveAppIdDraft = e.target.value; render(); },
     saveDriveSetup() {
       const id = state.driveClientIdDraft.trim();
       if (!id) return;
       state.driveClientId = id;
       state.driveApiKey = state.driveApiKeyDraft.trim();
+      state.driveAppId = state.driveAppIdDraft.trim();
       state.driveClientIdDraft = '';
       state.driveApiKeyDraft = '';
+      state.driveAppIdDraft = '';
       state.driveConnected = false;
       state.driveFileId = '';
       state.driveMessage = '';
@@ -1660,9 +1673,12 @@
     },
     saveDriveApiKey() {
       const key = state.driveApiKeyDraft.trim();
-      if (!key) return;
-      state.driveApiKey = key;
+      const appId = state.driveAppIdDraft.trim();
+      if (!key && !appId) return;
+      if (key) state.driveApiKey = key;
+      if (appId) state.driveAppId = appId;
       state.driveApiKeyDraft = '';
+      state.driveAppIdDraft = '';
       state.driveMessage = '';
       persistDriveConfig();
       render();
@@ -1671,6 +1687,7 @@
       Drive.reset();
       state.driveClientId = '';
       state.driveApiKey = '';
+      state.driveAppId = '';
       state.driveFileId = '';
       state.driveFolderId = '';
       state.driveFolderName = '';
@@ -1681,12 +1698,12 @@
     },
     async chooseDriveFolder() {
       if (!state.driveClientId) { state.driveMessage = 'Add your Google OAuth Client ID first.'; render(); return; }
-      if (!state.driveApiKey) { state.driveMessage = 'Add a Google API key above to enable folder selection.'; render(); return; }
+      if (!state.driveApiKey || !state.driveAppId) { state.driveMessage = 'Add a Google API key and project number above to enable folder selection.'; render(); return; }
       state.driveBusy = true;
       state.driveMessage = '';
       render();
       try {
-        const folder = await Drive.pickFolder(state.driveClientId, state.driveApiKey, !state.driveConnected);
+        const folder = await Drive.pickFolder(state.driveClientId, state.driveApiKey, state.driveAppId, !state.driveConnected);
         state.driveConnected = true;
         if (folder) {
           state.driveFolderId = folder.id;

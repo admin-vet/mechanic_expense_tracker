@@ -87,13 +87,22 @@ per deployment:
    only in that browser's `localStorage` — no code changes needed, and different
    forks/deployments can each use their own Client ID.
 
-**Optional — to pick which Drive folder backups go to:** also create an **API key** on
-the same credentials page. There's no separate "Picker API" to enable — under
-"API restrictions" choose **Google Drive API** (the one already enabled in step 3), and
-under "Website restrictions" add this site's origin. Paste the key into the same setup
-form. That unlocks a "Choose folder…" button in Settings that opens Google's own folder
-picker — the app never lists your Drive itself, it only receives the one
-folder you pick. Without an API key, backups go to the root of "My Drive".
+**Optional — to pick which Drive folder backups go to:** two more things are needed —
+
+1. An **API key**, created on the same credentials page. Enable **Picker API** in the
+   Library (a real, separate API — it just isn't listed as "Google Picker API", search
+   just "Picker"), then under "API restrictions" allow both **Picker API** and
+   **Google Drive API**, and under "Website restrictions" add this site's origin.
+2. Your Cloud project's **project number** (not the project ID, not the Client ID — it's
+   on the Cloud Console dashboard for the project). This is required for the `drive.file`
+   scope to actually grant the app access to a folder it didn't create itself; without it,
+   the folder picker still opens and lets you click a folder, but every backup afterward
+   fails with a 404 "File not found" on that folder's ID, because Drive never registered
+   the permission grant.
+
+Paste both into the same setup form in Settings. That unlocks a "Choose folder…" button
+that opens Google's own folder picker — the app never lists your Drive itself, it only
+receives the one folder you pick. Without these, backups go to the root of "My Drive".
 
 The app requests the `drive.file` scope only, meaning it can see or edit just the one
 backup file it creates for itself (`farm-fleet-expenses-backup.json`) — never the rest of

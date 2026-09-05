@@ -119,8 +119,15 @@ const Drive = (() => {
   // Opens Google's own folder picker so the user can choose a destination
   // folder in their Drive without the app ever listing their files itself.
   // Resolves to {id, name}, or null if the user cancels.
-  async function pickFolder(clientId, apiKey, interactive) {
+  //
+  // `appId` (the Cloud project *number*, not the project ID or OAuth client
+  // ID) is required for the drive.file scope to actually register access to
+  // a folder the app didn't create — without it, Picker still lets you click
+  // a folder, but Drive never grants the token visibility into it, and every
+  // later request against that folder ID comes back 404 "File not found".
+  async function pickFolder(clientId, apiKey, appId, interactive) {
     if (!apiKey) throw new Error('Add a Google API key first (see Settings for setup steps).');
+    if (!appId) throw new Error('Add your Google Cloud project number first (see Settings for setup steps).');
     const token = await requestToken(clientId, interactive);
     await loadPickerApi();
     return new Promise((resolve, reject) => {
@@ -131,6 +138,7 @@ const Drive = (() => {
           .setMimeTypes('application/vnd.google-apps.folder');
         const picker = new google.picker.PickerBuilder()
           .setTitle('Choose a backup folder')
+          .setAppId(appId)
           .addView(view)
           .setOAuthToken(token)
           .setDeveloperKey(apiKey)
