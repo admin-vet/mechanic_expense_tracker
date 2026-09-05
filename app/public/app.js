@@ -1311,9 +1311,16 @@
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
-          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !state.driveApiKey ? 'disabled' : ''} title="${state.driveApiKey ? '' : 'Add a Google API key above to enable this'}">Choose folder…</button>
+          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !state.driveApiKey ? 'disabled' : ''} title="${state.driveApiKey ? '' : 'Add a Google API key below to enable this'}">Choose folder…</button>
           ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
           <button class="btn btn-ghost" data-action="disconnectDrive">Forget Client ID</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
+          <div class="field" style="flex:1;min-width:240px;">
+            <label>Google API key ${state.driveApiKey ? '(set — enter a new one to replace it)' : '(needed for "Choose folder…")'}</label>
+            <input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="${state.driveApiKey ? '••••••••••••' : 'AIza…'}">
+          </div>
+          <button class="btn btn-secondary" data-action="saveDriveApiKey" ${!state.driveApiKeyDraft.trim() ? 'disabled' : ''}>Save key</button>
         </div>
         ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
       </div>
@@ -1647,6 +1654,15 @@
       state.driveApiKeyDraft = '';
       state.driveConnected = false;
       state.driveFileId = '';
+      state.driveMessage = '';
+      persistDriveConfig();
+      render();
+    },
+    saveDriveApiKey() {
+      const key = state.driveApiKeyDraft.trim();
+      if (!key) return;
+      state.driveApiKey = key;
+      state.driveApiKeyDraft = '';
       state.driveMessage = '';
       persistDriveConfig();
       render();
