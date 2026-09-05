@@ -64,21 +64,27 @@ const Drive = (() => {
     return (data.files && data.files[0]) || null;
   }
 
-  // Drive 404s an entire files.list call if its `'<id>' in parents` clause
-  // references a folder the token can't see — which happens whenever a saved
-  // folder gets deleted, moved out of reach, or (the original cause of this
-  // class of bug) was picked before the Cloud project's app id/project number
-  // was configured, so the drive.file grant never actually covered it. Rather
-  // than let that permanently lock the app out, fall back to an unscoped
-  // search (which still finds the real backup file via its own per-file
-  // grant, wherever it lives) and flag it so the caller can drop the stale
-  // folder instead of tripping over it again next time.
+  // Drive 404s an entire files.list (or upload) call if it references a
+  // folder the token can't see — which happens whenever a saved folder gets
+  // deleted, moved out of reach, or (the original cause of this class of
+  // bug) was picked before the Cloud project's app id/project number was
+  // configured. Rather than let that permanently lock the app out, fall back
+  // once with no folder and flag it so the caller can drop the stale folder.
+  // Critically, this must only fire for that *specific* error — Drive always
+  // names the missing id in the 404 body — and never for anything else (an
+  // expired token, a network blip, a rate limit): treating every unrelated
+  // failure as "the folder is gone" would wipe a perfectly good folder choice
+  // on any transient hiccup, including on every ordinary page reload.
+  function isFolderNotFoundError(e, folderId) {
+    return /Google Drive error \(404\)/.test(e.message) && e.message.indexOf(folderId) !== -1;
+  }
   let folderIdInvalidFlag = false;
   async function findBackupFileMeta(token, folderId) {
     if (!folderId) return runFileQuery(token, null);
     try {
       return await runFileQuery(token, folderId);
     } catch (e) {
+      if (!isFolderNotFoundError(e, folderId)) throw e;
       folderIdInvalidFlag = true;
       return runFileQuery(token, null);
     }
@@ -123,7 +129,7 @@ const Drive = (() => {
     try {
       return await uploadNewFile(token, content, folderId);
     } catch (e) {
-      if (e.message === 'UNAUTHORIZED') throw e;
+      if (!isFolderNotFoundError(e, folderId)) throw e;
       folderIdInvalidFlag = true;
       return uploadNewFile(token, content, null);
     }
