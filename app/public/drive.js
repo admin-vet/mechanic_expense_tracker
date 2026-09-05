@@ -1,12 +1,14 @@
 // Google Drive backup — client-side only, using Google Identity Services' OAuth
 // token client (no server, no client secret). Scope is drive.file: the app can
-// only see/edit files it created itself, never the rest of the user's Drive.
+// only see/edit files it created itself (or a folder the user explicitly picks
+// via the Google Picker below), never browse the rest of the user's Drive.
 const Drive = (() => {
   const SCOPE = 'https://www.googleapis.com/auth/drive.file';
   const FILE_NAME = 'farm-fleet-expenses-backup.json';
 
   let tokenClient = null;
   let tokenClientId = null;
+  let pickerApiLoading = null;
 
   function ensureTokenClient(clientId) {
     if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
@@ -47,18 +49,20 @@ const Drive = (() => {
     return res;
   }
 
-  async function findBackupFile(token) {
-    const q = encodeURIComponent(`name='${FILE_NAME}' and trashed=false`);
-    const res = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&spaces=drive&fields=files(id,name)', {
+  async function findBackupFile(token, folderId) {
+    let q = `name='${FILE_NAME}' and trashed=false`;
+    if (folderId) q += ` and '${folderId}' in parents`;
+    const res = await apiFetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&spaces=drive&fields=files(id,name)', {
       headers: { Authorization: 'Bearer ' + token },
     });
     const data = await res.json();
     return (data.files && data.files[0]) ? data.files[0].id : null;
   }
 
-  async function createBackupFile(token, content) {
+  async function createBackupFile(token, content, folderId) {
     const boundary = 'ffe_' + Math.random().toString(36).slice(2);
     const metadata = { name: FILE_NAME, mimeType: 'application/json' };
+    if (folderId) metadata.parents = [folderId];
     const body =
       '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + '\r\n' +
       '--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' + content + '\r\n' +
@@ -81,10 +85,11 @@ const Drive = (() => {
   }
 
   // Uploads `payload` to a single, stable backup file in the signed-in user's
-  // Drive, creating it on the first run and overwriting it after that.
-  // `existingFileId` (if known) skips the lookup. `interactive` forces the
-  // Google consent screen even if a prior grant may have expired silently.
-  async function backup(clientId, existingFileId, payload, interactive) {
+  // Drive (inside `folderId` if given, else "My Drive" root), creating it on
+  // the first run and overwriting it after that. `existingFileId` (if known)
+  // skips the lookup. `interactive` forces the Google consent screen even if
+  // a prior grant may have expired silently.
+  async function backup(clientId, existingFileId, payload, interactive, folderId) {
     const token = await requestToken(clientId, interactive);
     const content = JSON.stringify(payload, null, 2);
     if (existingFileId) {
@@ -92,16 +97,58 @@ const Drive = (() => {
         await updateBackupFile(token, existingFileId, content);
         return existingFileId;
       } catch (e) {
-        if (e.message !== 'UNAUTHORIZED') existingFileId = null; // e.g. file was deleted — fall through to recreate
-        else throw e;
+        if (e.message === 'UNAUTHORIZED') throw e;
+        existingFileId = null; // e.g. file was deleted — fall through to recreate
       }
     }
-    const foundId = await findBackupFile(token);
+    const foundId = await findBackupFile(token, folderId);
     if (foundId) { await updateBackupFile(token, foundId, content); return foundId; }
-    return createBackupFile(token, content);
+    return createBackupFile(token, content, folderId);
+  }
+
+  function loadPickerApi() {
+    if (window.google && window.google.picker) return Promise.resolve();
+    if (pickerApiLoading) return pickerApiLoading;
+    pickerApiLoading = new Promise((resolve, reject) => {
+      if (!window.gapi) { reject(new Error('The Google API loader has not loaded yet — check your internet connection and try again.')); return; }
+      window.gapi.load('picker', { callback: resolve, onerror: () => reject(new Error('Could not load the Google folder picker.')) });
+    });
+    return pickerApiLoading;
+  }
+
+  // Opens Google's own folder picker so the user can choose a destination
+  // folder in their Drive without the app ever listing their files itself.
+  // Resolves to {id, name}, or null if the user cancels.
+  async function pickFolder(clientId, apiKey, interactive) {
+    if (!apiKey) throw new Error('Add a Google API key first (see Settings for setup steps).');
+    const token = await requestToken(clientId, interactive);
+    await loadPickerApi();
+    return new Promise((resolve, reject) => {
+      try {
+        const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+          .setSelectFolderEnabled(true)
+          .setIncludeFolders(true)
+          .setMimeTypes('application/vnd.google-apps.folder');
+        const picker = new google.picker.PickerBuilder()
+          .setTitle('Choose a backup folder')
+          .addView(view)
+          .setOAuthToken(token)
+          .setDeveloperKey(apiKey)
+          .setCallback((data) => {
+            if (data.action === google.picker.Action.PICKED) {
+              const doc = data.docs[0];
+              resolve({ id: doc.id, name: doc.name });
+            } else if (data.action === google.picker.Action.CANCEL) {
+              resolve(null);
+            }
+          })
+          .build();
+        picker.setVisible(true);
+      } catch (e) { reject(e); }
+    });
   }
 
   function reset() { tokenClient = null; tokenClientId = null; }
 
-  return { backup, reset };
+  return { backup, pickFolder, reset };
 })();

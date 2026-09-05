@@ -53,7 +53,8 @@
 
     showBackupBanner: false, lastBackupAt: null,
 
-    driveClientId: '', driveClientIdDraft: '', driveFileId: '', driveLastBackupAt: null,
+    driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
+    driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
     driveConnected: false, driveBusy: false, driveMessage: '',
   };
 
@@ -101,7 +102,10 @@
     try {
       localStorage.setItem(DRIVE_KEY, JSON.stringify({
         clientId: state.driveClientId,
+        apiKey: state.driveApiKey,
         fileId: state.driveFileId,
+        folderId: state.driveFolderId,
+        folderName: state.driveFolderName,
         lastBackupAt: state.driveLastBackupAt,
       }));
     } catch (e) { /* ignore */ }
@@ -114,7 +118,10 @@
     try {
       const data = JSON.parse(raw);
       state.driveClientId = data.clientId || '';
+      state.driveApiKey = data.apiKey || '';
       state.driveFileId = data.fileId || '';
+      state.driveFolderId = data.folderId || '';
+      state.driveFolderName = data.folderName || '';
       state.driveLastBackupAt = data.lastBackupAt || null;
     } catch (e) { /* ignore */ }
   }
@@ -1281,24 +1288,30 @@
           <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;margin-bottom:14px;">
             One-time setup, done once per site: create an OAuth Client ID (Web application) at
             <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
-            enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
+            enable the "Google Drive API" and "Google Picker API" for that project, and under "Authorized JavaScript origins" add
             <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
             The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
+            To pick which folder that file lands in, also create an <strong>API key</strong> on the same credentials page (restrict it to
+            the Google Picker API and this site) and paste it below too — optional, otherwise backups go to the root of "My Drive".
           </div>
-          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-            <div class="field" style="flex:1;min-width:280px;"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
-            <button class="btn btn-secondary" data-action="saveDriveClientId" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save</button>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="field"><label>Google OAuth Client ID</label><input class="input" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
+            <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
+            <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
           </div>
         </div>
       `;
     }
-    const isError = /failed|expired|Add your/i.test(state.driveMessage || '');
+    const isError = /failed|expired|Add your|Could not/i.test(state.driveMessage || '');
     return `
       <div class="card" style="padding:16px 20px;">
         <div class="card-title" style="margin-bottom:8px;">Google Drive backup</div>
-        <div style="margin-bottom:12px;">Last Drive backup: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
+        <div style="margin-bottom:8px;">Last Drive backup: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
+        <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Backing up…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
+          <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : (state.driveConnected ? 'Back up to Google Drive now' : 'Connect & back up to Google Drive')}</button>
+          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !state.driveApiKey ? 'disabled' : ''} title="${state.driveApiKey ? '' : 'Add a Google API key above to enable this'}">Choose folder…</button>
+          ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
           <button class="btn btn-ghost" data-action="disconnectDrive">Forget Client ID</button>
         </div>
         ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
@@ -1623,11 +1636,14 @@
     dismissError() { state.loadError = ''; render(); },
 
     setDriveClientIdDraft(e) { state.driveClientIdDraft = e.target.value; render(); },
-    saveDriveClientId() {
+    setDriveApiKeyDraft(e) { state.driveApiKeyDraft = e.target.value; render(); },
+    saveDriveSetup() {
       const id = state.driveClientIdDraft.trim();
       if (!id) return;
       state.driveClientId = id;
+      state.driveApiKey = state.driveApiKeyDraft.trim();
       state.driveClientIdDraft = '';
+      state.driveApiKeyDraft = '';
       state.driveConnected = false;
       state.driveFileId = '';
       state.driveMessage = '';
@@ -1637,8 +1653,41 @@
     disconnectDrive() {
       Drive.reset();
       state.driveClientId = '';
+      state.driveApiKey = '';
       state.driveFileId = '';
+      state.driveFolderId = '';
+      state.driveFolderName = '';
       state.driveConnected = false;
+      state.driveMessage = '';
+      persistDriveConfig();
+      render();
+    },
+    async chooseDriveFolder() {
+      if (!state.driveClientId) { state.driveMessage = 'Add your Google OAuth Client ID first.'; render(); return; }
+      if (!state.driveApiKey) { state.driveMessage = 'Add a Google API key above to enable folder selection.'; render(); return; }
+      state.driveBusy = true;
+      state.driveMessage = '';
+      render();
+      try {
+        const folder = await Drive.pickFolder(state.driveClientId, state.driveApiKey, !state.driveConnected);
+        state.driveConnected = true;
+        if (folder) {
+          state.driveFolderId = folder.id;
+          state.driveFolderName = folder.name;
+          state.driveFileId = ''; // re-resolve (or create fresh) inside the newly chosen folder
+          state.driveMessage = 'Backup folder set to "' + folder.name + '".';
+          persistDriveConfig();
+        }
+      } catch (err) {
+        state.driveMessage = 'Could not open folder picker: ' + err.message;
+      }
+      state.driveBusy = false;
+      render();
+    },
+    clearDriveFolder() {
+      state.driveFolderId = '';
+      state.driveFolderName = '';
+      state.driveFileId = '';
       state.driveMessage = '';
       persistDriveConfig();
       render();
@@ -1650,7 +1699,7 @@
       render();
       try {
         const payload = buildBackupPayload();
-        const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, !state.driveConnected);
+        const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, !state.driveConnected, state.driveFolderId);
         state.driveFileId = fileId;
         state.driveConnected = true;
         state.driveLastBackupAt = new Date().toISOString();

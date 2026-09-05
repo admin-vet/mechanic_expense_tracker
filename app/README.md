@@ -87,6 +87,13 @@ per deployment:
    only in that browser's `localStorage` — no code changes needed, and different
    forks/deployments can each use their own Client ID.
 
+**Optional — to pick which Drive folder backups go to:** also create an **API key** on
+the same credentials page (restrict it to the "Google Picker API" and to this site's
+referrer), enable the **Google Picker API** in the Library, and paste the key into the
+same setup form. That unlocks a "Choose folder…" button in Settings that opens Google's
+own folder picker — the app never lists your Drive itself, it only receives the one
+folder you pick. Without an API key, backups go to the root of "My Drive".
+
 The app requests the `drive.file` scope only, meaning it can see or edit just the one
 backup file it creates for itself (`farm-fleet-expenses-backup.json`) — never the rest of
 anyone's Drive. Because the OAuth consent screen for a new Cloud project starts in
