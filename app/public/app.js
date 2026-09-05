@@ -44,7 +44,6 @@
     settingsPassword: '1234', changePasswordDraft: '',
 
     settingsTab: 'general',
-    newYearConfirming: false,
 
     year: null,
     yearlySortMode: 'most', yearlyGroupMode: 'category', yearlySearch: '',
@@ -287,11 +286,6 @@
       state.invoices = state.invoices
         .map((inv) => ({ ...inv, lineItems: inv.lineItems.filter((li) => li.id !== id) }))
         .filter((inv) => inv.lineItems.length > 0);
-      persistDB();
-    },
-
-    startNewYear() {
-      state.invoices = [];
       persistDB();
     },
 
@@ -1405,16 +1399,6 @@
             <button class="btn btn-secondary" data-action="saveChangePassword" ${!state.changePasswordDraft.trim() ? 'disabled' : ''}>Update password</button>
           </div>
         </div>
-        <div class="card">
-          <div class="card-title">Start a new year</div>
-          <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Clears all recorded expenses so the shop can begin tracking a fresh year. Equipment, categories, notes, and filters are kept.</div>
-          ${!state.newYearConfirming ? `<button class="btn btn-secondary" data-action="startNewYearClick">Start a new year</button>` : `
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="color:var(--color-accent-700);">This deletes every recorded expense. This can't be undone.</div>
-              <button class="btn btn-primary" data-action="confirmNewYear">Yes, start new year</button>
-              <button class="btn btn-ghost" data-action="cancelNewYear">Cancel</button>
-            </div>`}
-        </div>
       `;
     } else if (tab === 'categories') {
       body = settingsSectionHeader('Categories', `<button class="btn btn-secondary" data-action="openCategoryAddModal">+ Add category</button>`) + catBody;
@@ -1953,15 +1937,6 @@
         Store.createEquipment(payload);
         state.addModalOpen = false;
         state.addModalDraft = null;
-      });
-    },
-
-    startNewYearClick() { state.newYearConfirming = true; render(); },
-    cancelNewYear() { state.newYearConfirming = false; render(); },
-    confirmNewYear() {
-      mutate(() => {
-        Store.startNewYear();
-        state.newYearConfirming = false;
       });
     },
 
