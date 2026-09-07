@@ -2243,8 +2243,10 @@
         // overwriting it with whatever's currently in memory.
         await loadOrInitFromLocal(true);
         state.localMessage = 'Folder set to "' + name + '".';
+        state.loadError = '';
       } catch (err) {
         state.localMessage = 'Could not set folder: ' + err.message;
+        state.loadError = state.localMessage;
       }
       state.localBusy = false;
       render();
@@ -2260,14 +2262,21 @@
         state.localNeedsReconnect = false;
         dataDirty = false;
         state.localMessage = 'Saved to the local folder.';
+        state.loadError = '';
         showDriveToast('Saved to local folder.');
       } catch (err) {
         if (err.message === 'PERMISSION_NEEDED') {
           state.localNeedsReconnect = true;
-          state.localMessage = 'Click "Select folder" again to reconnect.';
+          state.localMessage = 'Local folder access needs to be reconnected — go to Settings → Storage and click "Select folder" again.';
         } else {
           state.localMessage = 'Save failed: ' + err.message;
         }
+        // The header's Save/Download icons live on every screen, not just
+        // Settings -> Storage, so a failure here needs to be visible outside
+        // that tab too -- otherwise a lapsed folder permission (which Chrome
+        // does revoke after enough time passes) just looks like the button
+        // silently doing nothing.
+        state.loadError = state.localMessage;
       }
       state.localBusy = false;
       render();
@@ -2290,10 +2299,11 @@
       } catch (err) {
         if (err.message === 'PERMISSION_NEEDED') {
           state.localNeedsReconnect = true;
-          state.localMessage = 'Click "Select folder" again to reconnect.';
+          state.localMessage = 'Local folder access needs to be reconnected — go to Settings → Storage and click "Select folder" again.';
         } else {
           state.localMessage = 'Load failed: ' + err.message;
         }
+        state.loadError = state.localMessage;
       }
       state.localBusy = false;
       render();

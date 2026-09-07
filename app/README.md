@@ -116,6 +116,13 @@ used to live in Settings. There's also a "Download JSON" button in Settings for 
 point-in-time export — that's just an extra safety copy, not how the app actually
 persists anything.
 
+If either header icon fails for the Local backend (most commonly: the browser's folder
+permission lapsed, which Chrome revokes on its own after enough time passes), that now
+shows as the same red error banner used for Drive failures, right under the header on
+whatever screen you're on — it used to only be written to a status line inside Settings →
+Storage, so failing outside that tab looked exactly like the button silently doing
+nothing.
+
 Next to it, **"Restore from file"** does the reverse: pick any backup JSON file (one
 downloaded from here earlier, or hand-built to match that same shape) and, after
 confirming, it replaces everything currently loaded — same as the header's download-latest
