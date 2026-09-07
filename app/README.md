@@ -15,18 +15,19 @@ self-contained app: plain HTML/CSS/JS, no build step, no server. A GitHub Action
 workflow (`.github/workflows/pages.yml`) publishes that folder to GitHub Pages on every
 push to `main`, at `https://<owner>.github.io/<repo>/`.
 
-  The app opens straight to the dashboard with sample data — nothing to connect or set
-  up first. **Settings → Storage** (password-protected, like the rest of admin) is where
-  you pick where the real data actually lives: **Google Drive**, **a folder on this
-  computer**, or nothing (just this session, unsaved). Whichever is picked is what
-  changes auto-save to every 15 seconds, and what the app loads from the next time it
-  opens — see "Choosing where data lives" below. The only things this browser ever keeps
-  locally are the connection config for whichever storage is picked (a Drive Client ID,
-  or a reference to the chosen local folder) — never the actual categories, equipment, or
-  invoices, so switching storage never loses anything already saved elsewhere. A single
-  settings password (default `1234`, changeable in Settings, saved as part of the data
-  itself) gates admin actions (add/delete equipment, categories, suppliers) the same way
-  the original design prototype did.
+  The app opens straight to the dashboard, empty — nothing to connect or set up first.
+  **Settings → Storage** (password-protected, like the rest of admin) is where you pick
+  where the real data actually lives: **Google Drive**, **Local** (a folder on this
+  computer), or nothing (just this session, unsaved). Whichever is picked is what changes
+  auto-save to every 15 seconds, and what the app loads from automatically — the moment a
+  storage location is set, the app checks it for existing data and loads that in, rather
+  than starting over — see "Choosing where data lives" below. The only things this
+  browser ever keeps locally are the connection config for whichever storage is picked (a
+  Drive Client ID, or a reference to the chosen local folder) — never the actual
+  categories, equipment, or invoices, so switching storage never loses anything already
+  saved elsewhere. A single settings password (default `1234`, changeable in Settings,
+  saved as part of the data itself) gates admin actions (add/delete equipment,
+  categories, suppliers) the same way the original design prototype did.
 
 **2. Optional real backend, self-hosted.** `server/` is a Node/Express + SQLite backend
 with real per-mechanic accounts (bcrypt-hashed passwords, sessions) and a shared
@@ -77,15 +78,21 @@ in two ways:
 
 Settings → Storage has three options — pick one:
 
-- **Not connected** — the default. Sample data only, nothing saves anywhere; closing the
-  tab loses it. Fine for trying the app out.
+- **Not connected** — the default. Nothing saves anywhere; closing the tab loses whatever
+  was entered. Fine for a quick look, not for real use.
 - **Google Drive** — one JSON file (`farm-fleet-expenses-backup.json`) in the signed-in
   Google account's Drive. Works from any device, any browser, as long as it signs in with
   the same Google account.
-- **A folder on this computer** — one JSON file written directly into a folder you pick,
-  via the browser's own file system access. Only works in **Chrome or Edge on a
-  computer** (there's no equivalent API in Firefox or Safari, or on mobile), and only in
-  *this* browser on *this* device — nothing syncs anywhere else.
+- **Local** — one JSON file written directly into a folder you pick on this computer, via
+  the browser's own file system access. Only works in **Chrome or Edge on a computer**
+  (there's no equivalent API in Firefox or Safari, or on mobile), and only in *this*
+  browser on *this* device — nothing syncs anywhere else.
+
+The moment Drive or Local is set up, the app checks that location for an existing backup
+and loads it in automatically if one's there — so pointing a fresh device at a Drive
+account or folder that already has data pulls that data in, rather than starting empty.
+If it's genuinely the first time that Drive account or folder has been used, the app
+saves whatever's currently loaded there instead, so the file exists from then on.
 
 Whichever is picked, changes **auto-save every 15 seconds** whenever there's something
 new to save — the cloud icon in the header does the same thing on demand — and Settings
@@ -146,7 +153,7 @@ applies per project too.
 
 ### Local folder setup
 
-In Settings → Storage, click **A folder on this computer**, then **Choose folder…** and
+In Settings → Storage, click **Local**, then **Choose folder…** and
 pick (or create) a folder — the browser will ask to confirm write access. That's it;
 nothing to configure. The browser remembers the folder across reloads in Chrome/Edge, but
 may ask you to reconnect (click "Choose folder…" again and pick the same folder) after

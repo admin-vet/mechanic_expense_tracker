@@ -63,29 +63,19 @@
   };
 
   // ---------------------------------------------------------------- data store
-  // The app opens straight to the dashboard with sample data every time, then
-  // — if a storage mode is configured in Settings → Storage — quietly loads
-  // the real data from Google Drive or a local folder in the background,
-  // replacing the sample data once it arrives. Every change after that
-  // auto-saves back to whichever storage is active every 15 seconds. Only the
-  // storage mode + connection config (Drive Client ID, local folder handle,
-  // etc.) live in this browser's localStorage/IndexedDB — never the actual
+  // The app opens straight to the dashboard, empty, every time, then — if a
+  // storage mode is configured in Settings → Storage — quietly loads the
+  // real data from Google Drive or a local folder in the background,
+  // populating the app once it arrives. Every change after that auto-saves
+  // back to whichever storage is active every 15 seconds. Only the storage
+  // mode + connection config (Drive Client ID, local folder handle, etc.)
+  // live in this browser's localStorage/IndexedDB — never the actual
   // categories/equipment/invoices, so nothing is lost by switching storage.
   let nextId = 1;
 
-  function seedDefaults() {
-    state.categories = [
-      { id: nextId++, name: 'Car / Truck', color: 'oklch(60% 0.19 260)' },
-      { id: nextId++, name: 'Combine', color: 'oklch(60% 0.19 29)' },
-      { id: nextId++, name: 'Tractor', color: 'oklch(60% 0.19 140)' },
-      { id: nextId++, name: 'Construction Equipment', color: 'oklch(60% 0.19 80)' },
-      { id: nextId++, name: 'Telehandler', color: 'oklch(60% 0.19 320)' },
-      { id: nextId++, name: 'Other', color: 'oklch(60% 0.19 200)' },
-    ];
-    state.equipment = ['Combine 1', 'Combine 2', 'Combine 3', 'Combine 4', '9430 Tractor', '7230R Tractor'].map((name) => ({
-      id: nextId++, name, category: 'Other', make: '', model: '', vin: '', info: '',
-      hourStart: '', hourEnd: '', filters: [], services: [], notes: [],
-    }));
+  function resetData() {
+    state.categories = [];
+    state.equipment = [];
     state.suppliers = [];
     state.invoices = [];
     state.settingsPassword = '1234';
@@ -1510,7 +1500,7 @@
     const modes = [
       { key: 'none', label: 'Not connected' },
       { key: 'drive', label: 'Google Drive' },
-      { key: 'local', label: 'A folder on this computer' },
+      { key: 'local', label: 'Local' },
     ];
     return `
       <div class="card" style="padding:16px 20px;margin-bottom:16px;">
@@ -1954,13 +1944,14 @@
       state.localMessage = '';
       persistStorageMode();
       render();
-      if (d.mode === 'local') Actions.refreshLocalFolderName();
-    },
-    async refreshLocalFolderName() {
-      try {
-        const name = await LocalStore.currentFolderName();
-        if (name) { state.localFolderName = name; render(); }
-      } catch (e) { /* ignore */ }
+      // Switching to a mode that's already configured (e.g. going back to
+      // Drive after trying Local) should immediately pull in whatever's
+      // saved there, same as first setting it up does.
+      if (d.mode === 'drive' && state.driveClientId) {
+        loadOrInitFromDrive(false).then(render).catch(() => {});
+      } else if (d.mode === 'local') {
+        loadOrInitFromLocal(false).then(render).catch(() => { state.localNeedsReconnect = true; render(); });
+      }
     },
     headerSaveNow() {
       if (state.storageMode === 'drive') Actions.driveBackupNow();
@@ -1972,11 +1963,10 @@
       render();
       try {
         const name = await LocalStore.pickFolder();
-        state.localFolderName = name;
-        state.localNeedsReconnect = false;
-        await LocalStore.backup(buildBackupPayload(), true);
-        state.localLastSavedAt = new Date().toISOString();
-        dataDirty = false;
+        // Auto-retrieve: if this folder already has a backup file (e.g. it
+        // was used before, or is shared/synced), load it instead of
+        // overwriting it with whatever's currently in memory.
+        await loadOrInitFromLocal(true);
         state.localMessage = 'Folder set to "' + name + '".';
       } catch (err) {
         state.localMessage = 'Could not set folder: ' + err.message;
@@ -2413,13 +2403,14 @@
   async function init() {
     loadStorageMode();
     loadDriveConfig();
-    seedDefaults();
+    resetData();
     state.loading = false;
     render();
     setInterval(autoSaveTick, 15000);
-    // Non-blocking background sync: the dashboard is already showing sample
-    // data by the time this resolves, so a real backend's data (if any)
-    // simply replaces it once it arrives — nothing gates the UI on this.
+    // Non-blocking background sync: the dashboard is already showing
+    // (empty) by the time this resolves, so whatever's in the configured
+    // storage just populates it once it arrives — nothing gates the UI on
+    // this.
     try {
       if (state.storageMode === 'drive' && state.driveClientId) {
         await loadOrInitFromDrive(false);
