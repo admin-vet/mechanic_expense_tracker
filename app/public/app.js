@@ -52,6 +52,7 @@
 
     storageMode: 'none', // 'none' | 'drive' | 'local' — set in Settings → Storage
     storageChangeConfirming: false, // true while the locked mode picker is expanded for editing
+    storageChangeAuthOpen: false, storageChangeAuthInput: '', storageChangeAuthError: false, storageChangeAuthPending: null,
     restoreConfirmOpen: false, // "download latest" confirm modal, triggered from the header
 
     openInfoId: null, // which (if any) info popover is currently open
@@ -326,6 +327,7 @@
         filters: (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: nextId++, type: f.type || '', partNumber: f.partNumber || '' })),
         services: (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' })),
         notes: [],
+        manual: payload.manual || null,
       });
       persistDB();
     },
@@ -343,6 +345,7 @@
       eq.info = payload.info || '';
       eq.filters = (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: f.id || nextId++, type: f.type || '', partNumber: f.partNumber || '' }));
       eq.services = (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: s.id || nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' }));
+      eq.manual = payload.manual || null;
       persistDB();
     },
     deleteEquipment(id) {
@@ -439,6 +442,15 @@
   function attr(s) { return esc(s); }
   function uid() { return 'id_' + Math.random().toString(36).slice(2); }
   function alphaSort(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }
+
+  // A trash-can icon button, used in place of a "Delete"/"Remove" text
+  // button wherever that button just triggers a confirm step (or, for
+  // low-stakes rows like a filter/service line, is the removal itself).
+  function trashButton(action, label, extraAttrs) {
+    return `<button class="btn-icon" data-action="${action}" aria-label="${attr(label)}" title="${attr(label)}" ${extraAttrs || ''}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+    </button>`;
+  }
 
   // A small "i" badge that reveals a popover of help text on click, instead
   // of that text sitting permanently on the page. `html` is trusted markup
@@ -603,6 +615,7 @@
         <div style="display:flex;gap:10px;align-items:center;">
           ${navBtn('dashboard', 'Dashboard', v === 'dashboard', 'style="font-size:17px;padding:14px 22px;"')}
           ${navBtn('upload', 'Expense', v === 'upload', 'style="font-size:17px;padding:14px 22px;"')}
+          ${navBtn('maintenance', 'Maintenance', v === 'maintenance', 'style="font-size:15px;padding:14px 18px;"')}
           ${navBtn('history', 'Equipment', v === 'history' || v === 'detail', 'style="font-size:15px;padding:14px 18px;"')}
           ${navBtn('yearly', 'Reports', v === 'yearly', 'style="font-size:15px;padding:14px 18px;"')}
           <button class="btn ${v === 'analytics' ? 'btn-primary' : 'btn-ghost'}" data-action="setView" data-view="analytics" aria-label="Advanced reporting" title="Advanced reporting" style="padding:14px;">
@@ -620,6 +633,7 @@
     switch (state.view) {
       case 'dashboard': return renderDashboard();
       case 'upload': return renderExpense();
+      case 'maintenance': return renderMaintenance();
       case 'history': return renderEquipmentList();
       case 'detail': return renderEquipmentDetail();
       case 'yearly': return renderYearly();
@@ -833,7 +847,7 @@
               <label>Equipment</label>
               <input class="input" id="row-${i}-equipment" data-action="updateStandaloneRow" data-index="${i}" data-field="equipment" data-on="input" style="width:100%;" list="equipmentDatalist" placeholder="Start typing…" value="${attr(row.equipment)}">
             </div>
-            ${rows.length > 1 ? `<button class="btn btn-ghost" data-action="removeStandaloneRow" data-index="${i}">Remove</button>` : ''}
+            ${rows.length > 1 ? trashButton('removeStandaloneRow', 'Remove row', `data-index="${i}"`) : ''}
           </div>
         `).join('')}
         <div style="display:flex;gap:8px;">
@@ -884,7 +898,7 @@
                   <td><input class="input" id="pend-${item.id}-vendor" data-action="updatePendingItem" data-id="${item.id}" data-field="vendor" data-on="input" style="width:130px" list="supplierList" value="${attr(item.vendor)}"></td>
                   <td><input class="input" id="pend-${item.id}-date" data-action="updatePendingItem" data-id="${item.id}" data-field="date" data-on="change" style="width:120px" type="date" value="${attr(item.date)}"></td>
                   <td><input class="input" id="pend-${item.id}-equipment" data-action="updatePendingItem" data-id="${item.id}" data-field="equipment" data-on="input" style="width:160px" list="equipmentDatalist" placeholder="Start typing…" value="${attr(item.equipment)}"></td>
-                  <td><button class="btn btn-ghost" data-action="removePendingItem" data-id="${item.id}">Remove</button></td>
+                  <td>${trashButton('removePendingItem', 'Remove line item', `data-id="${item.id}"`)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -960,6 +974,70 @@
         <div class="field"><label>Date</label><input class="input" id="mf-date" data-action="updateManualForm" data-field="date" data-on="change" style="width:130px" type="date" value="${attr(f.date)}"></div>
         <button class="btn btn-primary" data-action="saveManualExpense" data-id="${eq.id}" ${saveDisabled ? 'disabled' : ''}>Save expense</button>
         <button class="btn btn-ghost" data-action="closeManualForm">Cancel</button>
+      </div>
+    `;
+  }
+
+  // Every service interval across every piece of equipment, in one place,
+  // sorted most-urgent-first — the same status math as the per-equipment
+  // detail view's "Service Status" card (serviceStatus()), just rolled up.
+  function renderMaintenance() {
+    const rows = [];
+    state.equipment.forEach((eq) => {
+      const cur = parseFloat(eq.hourEnd);
+      (eq.services || []).forEach((sv) => {
+        const interval = parseFloat(sv.interval);
+        const last = parseFloat(sv.lastHours);
+        const known = !isNaN(interval) && interval > 0 && !isNaN(last) && !isNaN(cur);
+        const used = known ? Math.max(0, cur - last) : 0;
+        const pct = known ? used / interval : 0;
+        const st = known ? serviceStatus(pct) : { color: 'var(--color-neutral-500)', label: 'Not set' };
+        const remaining = known ? interval - used : null;
+        rows.push({
+          eqId: eq.id, eqName: eq.name, category: eq.category, svId: sv.id, svName: sv.name,
+          known, pct, color: st.color, label: st.label,
+          detail: known
+            ? (remaining >= 0 ? `${Math.round(remaining)} hrs left` : `${Math.round(-remaining)} hrs overdue`)
+            : 'Set interval, last-change hours and current meter',
+        });
+      });
+    });
+
+    const order = { Overdue: 0, 'Due now': 1, 'Due soon': 2, OK: 3, 'Not set': 4 };
+    rows.sort((a, b) => (order[a.label] - order[b.label]) || b.pct - a.pct);
+    const counts = rows.reduce((acc, r) => { acc[r.label] = (acc[r.label] || 0) + 1; return acc; }, {});
+    const summaryColors = { Overdue: 'oklch(55% 0.21 27)', 'Due now': 'oklch(68% 0.17 55)', 'Due soon': 'oklch(76% 0.15 90)', OK: 'oklch(56% 0.14 150)' };
+    const summaryTiles = Object.keys(summaryColors).map((label) => `
+      <div class="card" style="flex:1;min-width:120px;"><div class="card-kicker">${esc(label)}</div><div style="font-family:var(--font-heading);font-size:28px;color:${summaryColors[label]};">${counts[label] || 0}</div></div>
+    `).join('');
+
+    return `
+      <div style="padding:40px 32px;max-width:1000px;width:100%;margin:0 auto;box-sizing:border-box;">
+        <h1 style="font-size:28px;margin:0 0 8px;">Maintenance</h1>
+        <p class="text-muted" style="max-width:640px;margin-bottom:24px;">Every service interval across all equipment, most urgent first — based on each item's current hour meter.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">${summaryTiles}</div>
+        ${rows.length ? `
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            ${rows.map((r) => `
+              <div class="card" style="padding:14px 18px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <div>
+                    <button class="btn btn-ghost" style="padding:0;font-family:var(--font-heading);font-size:16px;" data-action="viewEquipment" data-id="${r.eqId}">${esc(r.eqName)}</button>
+                    <span class="card-meta">${esc(r.category)} · ${esc(r.svName)}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <span style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:${r.color};">${esc(r.label)}</span>
+                    <span class="card-meta">${esc(r.detail)}</span>
+                    ${r.known ? `<button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" data-action="logService" data-eq="${r.eqId}" data-sv="${r.svId}">Mark done</button>` : ''}
+                  </div>
+                </div>
+                <div style="height:8px;background:var(--color-neutral-200);position:relative;margin-top:10px;">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(100, Math.round(r.pct * 100))}%;background:${r.color};"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `<div class="text-muted">No service intervals set up yet. Add them from an equipment's edit screen.</div>`}
       </div>
     `;
   }
@@ -1073,6 +1151,7 @@
         </div>
         ${makeModel ? `<div class="card-meta" style="margin-bottom:4px;">${esc(makeModel)}</div>` : ''}
         ${eq.vin ? `<div class="card-meta" style="margin-bottom:4px;">VIN / Serial: ${esc(eq.vin)}</div>` : ''}
+        ${eq.manual ? `<div class="card-meta" style="margin-bottom:4px;">Manual: <a href="${eq.manual.dataUrl}" target="_blank" rel="noopener" download="${attr(eq.manual.fileName)}">${esc(eq.manual.fileName)}</a></div>` : ''}
         ${eq.info ? `<div class="card-meta" style="margin-bottom:24px;">${esc(eq.info)}</div>` : ''}
 
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px;gap:16px;">
@@ -1128,7 +1207,7 @@
                 <div>${esc(n.text)}</div>
                 ${n.date ? `<div class="card-meta">Due ${esc(n.date)}</div>` : ''}
               </div>
-              <button class="btn btn-ghost" data-action="removeNote" data-id="${n.id}">Remove</button>
+              ${trashButton('removeNote', 'Remove note', `data-id="${n.id}"`)}
             </div>
           </div>
         `).join('')}
@@ -1138,7 +1217,7 @@
           <table class="table" style="margin-bottom:36px;">
             <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Qty</th><th>Total</th><th>Source</th><th></th></tr></thead>
             <tbody>
-              ${items.map((li) => `<tr><td>${esc(li.date)}</td><td>${esc(li.part)}</td><td>${esc(li.vendor)}</td><td>${esc(li.qty)}</td><td>${fmt(li.totalCost)}</td><td>${esc(li.fileName)}</td><td><button class="btn btn-ghost" data-action="removeLineItem" data-id="${li.id}">Delete</button></td></tr>`).join('')}
+              ${items.map((li) => `<tr><td>${esc(li.date)}</td><td>${esc(li.part)}</td><td>${esc(li.vendor)}</td><td>${esc(li.qty)}</td><td>${fmt(li.totalCost)}</td><td>${esc(li.fileName)}</td><td>${trashButton('removeLineItem', 'Delete expense line', `data-id="${li.id}"`)}</td></tr>`).join('')}
             </tbody>
           </table>
         ` : `<div class="text-muted" style="margin-bottom:36px;">No expenses recorded yet.</div>`}
@@ -1572,7 +1651,7 @@
           <button class="btn-icon" data-action="startEditEquipment" data-id="${eq.id}" aria-label="Edit equipment">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
           </button>
-          <button class="btn btn-ghost" data-action="confirmDeleteEquipment" data-id="${eq.id}">Delete</button>
+          ${trashButton('confirmDeleteEquipment', 'Delete equipment', `data-id="${eq.id}"`)}
         </div>
         ${state.confirmDeleteFor === eq.id ? `
           <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1589,7 +1668,7 @@
           <button class="btn-icon" data-action="openSupplierEditModal" data-id="${sup.id}" aria-label="Edit supplier">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
           </button>
-          <button class="btn btn-ghost" data-action="confirmDeleteSupplier" data-id="${sup.id}">Delete</button>
+          ${trashButton('confirmDeleteSupplier', 'Delete supplier', `data-id="${sup.id}"`)}
         </div>
         ${state.confirmDeleteSupplierFor === sup.id ? `
           <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -1661,7 +1740,7 @@
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <input class="input" id="${prefix}-filter-${i}-type" style="flex:1 1 0;min-width:0;" placeholder="Filter type (e.g. Air, Oil, Fuel)" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="type" data-on="input" value="${attr(f.type)}">
           <input class="input" id="${prefix}-filter-${i}-partNumber" style="flex:1 1 0;min-width:0;" placeholder="Part number" data-action="${prefix}UpdateFilter" data-index="${i}" data-field="partNumber" data-on="input" value="${attr(f.partNumber)}">
-          <button class="btn btn-ghost" data-action="${prefix}RemoveFilter" data-index="${i}">Remove</button>
+          ${trashButton(prefix + 'RemoveFilter', 'Remove filter', `data-index="${i}"`)}
         </div>
       `).join('')}
       <button class="btn btn-ghost" data-action="${prefix}AddFilter">+ Add filter type</button>
@@ -1676,7 +1755,7 @@
           <input class="input" id="${prefix}-service-${i}-name" style="flex:1 1 auto;min-width:0;" placeholder="e.g. Engine oil" data-action="${prefix}UpdateService" data-index="${i}" data-field="name" data-on="input" value="${attr(sv.name)}">
           <input class="input" id="${prefix}-service-${i}-interval" style="width:150px;flex:0 0 auto;" type="number" step="1" placeholder="Every hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="interval" data-on="input" value="${attr(sv.interval)}">
           <input class="input" id="${prefix}-service-${i}-lastHours" style="width:160px;flex:0 0 auto;" type="number" step="0.1" placeholder="Last at hrs" data-action="${prefix}UpdateService" data-index="${i}" data-field="lastHours" data-on="input" value="${attr(sv.lastHours)}">
-          <button class="btn btn-ghost" data-action="${prefix}RemoveService" data-index="${i}">Remove</button>
+          ${trashButton(prefix + 'RemoveService', 'Remove service interval', `data-index="${i}"`)}
         </div>
       `).join('')}
       <button class="btn btn-ghost" data-action="${prefix}AddService">+ Add service interval</button>
@@ -1695,7 +1774,7 @@
               <div class="field" style="flex:1;"><label>Model</label><input class="input" id="${prefix}-model" data-action="${prefix}Update" data-field="model" data-on="input" value="${attr(draft.model)}" placeholder="e.g. 9430"></div>
             </div>
             <div class="field"><label>Category</label>
-              <select class="input" data-action="${prefix}Update" data-field="category" data-on="change">
+              <select class="input" id="${prefix}-category" data-action="${prefix}Update" data-field="category" data-on="change">
                 ${state.categories.map((c) => `<option value="${attr(c.name)}" ${c.name === draft.category ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
               </select>
             </div>
@@ -1703,6 +1782,16 @@
             <div class="field"><label>Notes</label><textarea class="input" id="${prefix}-info" rows="3" data-action="${prefix}Update" data-field="info" data-on="input">${esc(draft.info)}</textarea></div>
             <div class="field"><label>Filters</label>${filterRowsHtml(prefix, draft.filters)}</div>
             <div class="field"><label>Service intervals</label>${serviceRowsHtml(prefix, draft.services)}</div>
+            <div class="field">
+              <label>User manual</label>
+              ${draft.manual ? `
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <a href="${draft.manual.dataUrl}" target="_blank" rel="noopener" download="${attr(draft.manual.fileName)}">${esc(draft.manual.fileName)}</a>
+                  ${trashButton(prefix + 'RemoveManual', 'Remove manual')}
+                </div>
+              ` : `<input type="file" id="${prefix}-manual-file" accept="application/pdf,image/*" data-action="${prefix}UpdateManual" data-on="change">`}
+              ${draft.manualError ? `<div style="color:var(--color-accent-700);font-size:13px;margin-top:4px;">${esc(draft.manualError)}</div>` : ''}
+            </div>
           </div>
           <div class="dialog-actions">
             <button class="btn btn-ghost" data-action="${prefix}Cancel">Cancel</button>
@@ -1801,6 +1890,16 @@
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelChangeLocalFolder">Cancel</button><button class="btn btn-primary" data-action="chooseLocalFolder">Continue</button></div>
         </div></div>`;
     }
+    if (state.storageChangeAuthOpen) {
+      html += `
+        <div class="dialog-backdrop"><div class="dialog">
+          <div class="dialog-title">Confirm password</div>
+          <div class="dialog-body">Changing your storage location can affect where your data loads from. Enter the settings password to continue.</div>
+          <div class="field"><label>Password</label><input class="input" id="storage-change-auth-input" type="password" data-action="setStorageChangeAuthInput" data-on="input" value="${attr(state.storageChangeAuthInput)}"></div>
+          ${state.storageChangeAuthError ? `<div style="color:var(--color-accent-700);font-size:13px;">Incorrect password.</div>` : ''}
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelStorageChangeAuth">Cancel</button><button class="btn btn-primary" data-action="submitStorageChangeAuth">Confirm</button></div>
+        </div></div>`;
+    }
     return html;
   }
 
@@ -1817,8 +1916,14 @@
   }
 
   function equipmentDraftPayload(d) {
-    return { name: d.name.trim(), category: d.category, make: d.make, model: d.model, vin: d.vin, info: d.info, filters: d.filters, services: d.services };
+    return { name: d.name.trim(), category: d.category, make: d.make, model: d.model, vin: d.vin, info: d.info, filters: d.filters, services: d.services, manual: d.manual || null };
   }
+
+  // A manual is embedded directly in the equipment record as a data URL, so
+  // it's backed up and restored with everything else through the same JSON
+  // file — no separate upload plumbing needed. Capped well under what a
+  // single Drive/local-folder JSON write should comfortably handle.
+  const MAX_MANUAL_BYTES = 15 * 1024 * 1024;
 
   // ---------------------------------------------------------------- edit/add equipment modal shared logic
 
@@ -1832,6 +1937,25 @@
     Actions[prefix + 'AddService'] = () => { draftFor(prefix).services.push({ name: '', interval: '', lastHours: '' }); render(); };
     Actions[prefix + 'UpdateService'] = (e, d) => { draftFor(prefix).services[Number(d.index)][d.field] = e.target.value; render(); };
     Actions[prefix + 'RemoveService'] = (e, d) => { draftFor(prefix).services.splice(Number(d.index), 1); render(); };
+    Actions[prefix + 'UpdateManual'] = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const draft = draftFor(prefix);
+      if (file.size > MAX_MANUAL_BYTES) {
+        draft.manualError = 'That file is too large (max 15 MB).';
+        render();
+        return;
+      }
+      draft.manualError = '';
+      const reader = new FileReader();
+      reader.onload = () => {
+        draft.manual = { fileName: file.name, mimeType: file.type || 'application/octet-stream', dataUrl: reader.result };
+        render();
+      };
+      reader.onerror = () => { draft.manualError = 'Could not read that file.'; render(); };
+      reader.readAsDataURL(file);
+    };
+    Actions[prefix + 'RemoveManual'] = () => { draftFor(prefix).manual = null; draftFor(prefix).manualError = ''; render(); };
   }
 
   function registerCategoryModalActions(prefix, getDraft) {
@@ -1992,8 +2116,35 @@
       render();
     },
 
-    startChangeStorage() { state.storageChangeConfirming = true; render(); },
+    startChangeStorage() {
+      state.storageChangeAuthPending = 'mode';
+      state.storageChangeAuthOpen = true;
+      state.storageChangeAuthInput = '';
+      state.storageChangeAuthError = false;
+      render();
+    },
     cancelChangeStorage() { state.storageChangeConfirming = false; render(); },
+    setStorageChangeAuthInput(e) { state.storageChangeAuthInput = e.target.value; state.storageChangeAuthError = false; render(); },
+    cancelStorageChangeAuth() {
+      state.storageChangeAuthOpen = false;
+      state.storageChangeAuthPending = null;
+      state.storageChangeAuthInput = '';
+      render();
+    },
+    submitStorageChangeAuth() {
+      if (state.storageChangeAuthInput !== state.settingsPassword) {
+        state.storageChangeAuthError = true;
+        render();
+        return;
+      }
+      const pending = state.storageChangeAuthPending;
+      state.storageChangeAuthOpen = false;
+      state.storageChangeAuthPending = null;
+      state.storageChangeAuthInput = '';
+      if (pending === 'mode') state.storageChangeConfirming = true;
+      else if (pending === 'folder') state.localFolderChangeConfirming = true;
+      render();
+    },
     setStorageMode(e, d) {
       state.storageMode = d.mode;
       state.storageChangeConfirming = false;
@@ -2021,7 +2172,13 @@
       if (state.storageMode === 'drive') performDriveRestore(state.driveFileId);
       else if (state.storageMode === 'local') Actions.doLocalRestore();
     },
-    confirmChangeLocalFolder() { state.localFolderChangeConfirming = true; render(); },
+    confirmChangeLocalFolder() {
+      state.storageChangeAuthPending = 'folder';
+      state.storageChangeAuthOpen = true;
+      state.storageChangeAuthInput = '';
+      state.storageChangeAuthError = false;
+      render();
+    },
     cancelChangeLocalFolder() { state.localFolderChangeConfirming = false; render(); },
     async chooseLocalFolder() {
       state.localFolderChangeConfirming = false;
@@ -2250,7 +2407,7 @@
     startEditEquipment(e, d) {
       const eq = equipmentById(d.id);
       state.editModalOpenFor = eq.id;
-      state.editModalDraft = { name: eq.name, make: eq.make, model: eq.model, category: eq.category, vin: eq.vin, info: eq.info, filters: eq.filters.map((f) => ({ ...f })), services: eq.services.map((s) => ({ ...s })) };
+      state.editModalDraft = { name: eq.name, make: eq.make, model: eq.model, category: eq.category, vin: eq.vin, info: eq.info, filters: eq.filters.map((f) => ({ ...f })), services: eq.services.map((s) => ({ ...s })), manual: eq.manual || null, manualError: '' };
       state.manageOpenFor = null;
       render();
     },
@@ -2268,7 +2425,7 @@
 
     openAddEquipmentModal() {
       state.addModalOpen = true;
-      state.addModalDraft = { name: '', category: state.selectedCategory || (state.categories[0] || {}).name || 'Other', make: '', model: '', vin: '', info: '', filters: [], services: [] };
+      state.addModalDraft = { name: '', category: state.selectedCategory || (state.categories[0] || {}).name || 'Other', make: '', model: '', vin: '', info: '', filters: [], services: [], manual: null, manualError: '' };
       render();
     },
     addCancel() { state.addModalOpen = false; state.addModalDraft = null; render(); },

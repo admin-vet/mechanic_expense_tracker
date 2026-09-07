@@ -99,11 +99,15 @@ always showing what's actually in Drive/the folder rather than something stale.
 
 Once a storage location is picked, **Settings → Storage locks it in** — the mode buttons
 collapse into a "Connected to: <mode>" summary, so it can't be changed by an idle click.
-A "Change location" button is still there if you deliberately want to switch. Switching
-the *local folder* specifically (not the mode) asks for confirmation first and explains
-what happens: if the new folder already has a backup, that loads in and replaces what's
-here; if not, what's currently loaded gets saved there instead — either way, auto-save
-starts going to the new folder from then on.
+A "Change location" button is still there if you deliberately want to switch, but clicking
+it (or "Select folder" to switch the local folder while staying in Local mode) asks for the
+settings password again first — a second layer on top of Settings already being
+password-gated, since this specific action can change where the app's data loads from.
+Entering it correctly then shows the normal switcher/folder-picker flow. Switching the
+*local folder* specifically (not the mode) also explains what happens once past that gate:
+if the new folder already has a backup, that loads in and replaces what's here; if not,
+what's currently loaded gets saved there instead — either way, auto-save starts going to
+the new folder from then on.
 
 Two icons appear in the header once a location is set: a cloud/save icon that backs up
 right now, and a download icon that pulls the latest down (after confirming, since it
@@ -176,6 +180,33 @@ may ask you to reconnect (click "Select folder" again and pick the same folder) 
 enough time has passed, since it re-checks permission for security. If the button that
 picks a folder doesn't appear at all, the browser doesn't support this feature — Google
 Drive is the alternative for anyone not on Chrome/Edge.
+
+## Maintenance dashboard
+
+The top nav's **Maintenance** tab (next to Expense) rolls up every service interval on
+every piece of equipment into one list, sorted most-urgent-first — the same
+Overdue/Due now/Due soon/OK status math already used on each equipment's own detail page,
+just aggregated across the whole fleet. Each row links back to that equipment and has a
+"Mark done" shortcut that logs the service the same way the detail page's own button does.
+Equipment with no service intervals set up yet just doesn't appear here; the detail page
+is still where intervals get added.
+
+## Equipment manuals
+
+An equipment's edit screen has a **User manual** field for uploading a PDF or image (up to
+15 MB) that stays attached to that specific piece of equipment — it's stored directly on
+the equipment's own record (as a data URL), so it's included automatically in the exact
+same backup/restore as everything else, with nothing extra to configure. It shows as a
+download link on that equipment's detail page and can be replaced or removed (via the
+trash icon) from the edit screen.
+
+## UI conventions
+
+Delete/remove actions that aren't the final step of a confirmation are a small trash-can
+icon button rather than a text button, matching the existing edit-pencil icon — text is
+kept only on the last button of a destructive confirm dialog (e.g. "Delete equipment") and
+on text-based dropdown menu items, where an icon would look inconsistent next to the rest
+of the menu.
 
 ## Support
 
