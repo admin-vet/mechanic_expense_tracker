@@ -50,23 +50,27 @@
 
     analyticsMode: 'vendor', anYearA: null, anYearB: null, anSearch: '', anSort: 'biggestIncrease', anCrossVendor: '', anCrossEquipment: '',
 
-    appReady: false, gateBusy: false, gateError: '',
+    storageMode: 'none', // 'none' | 'drive' | 'local' — set in Settings → Storage
 
     driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
     driveAppId: '', driveAppIdDraft: '',
     driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
     driveBusy: false, driveMessage: '', driveToast: '',
     driveRestoreConfirming: false,
+
+    localFolderName: '', localLastSavedAt: null, localBusy: false, localMessage: '',
+    localNeedsReconnect: false, localRestoreConfirming: false,
   };
 
   // ---------------------------------------------------------------- data store
-  // The real data (categories, equipment, suppliers, invoices, settings
-  // password) lives only in memory here plus in one JSON file in the user's
-  // Google Drive — never in this browser's localStorage. That's what makes
-  // the same data show up on every device: the connect gate in init() loads
-  // it from Drive before the app is usable at all. Only the Drive connection
-  // config itself (Client ID, API key, project number, folder) is kept in
-  // localStorage, since that's needed just to bootstrap the OAuth connection.
+  // The app opens straight to the dashboard with sample data every time, then
+  // — if a storage mode is configured in Settings → Storage — quietly loads
+  // the real data from Google Drive or a local folder in the background,
+  // replacing the sample data once it arrives. Every change after that
+  // auto-saves back to whichever storage is active every 15 seconds. Only the
+  // storage mode + connection config (Drive Client ID, local folder handle,
+  // etc.) live in this browser's localStorage/IndexedDB — never the actual
+  // categories/equipment/invoices, so nothing is lost by switching storage.
   let nextId = 1;
 
   function seedDefaults() {
@@ -87,10 +91,10 @@
     state.settingsPassword = '1234';
   }
 
-  let driveDirty = false;
+  let dataDirty = false;
 
   function persistDB() {
-    driveDirty = true;
+    dataDirty = true;
   }
 
   // Replaces local data with a downloaded backup. Backups don't carry `nextId`,
@@ -120,6 +124,18 @@
     });
     nextId = maxId + 1;
     persistDB();
+  }
+
+  const STORAGE_MODE_KEY = 'farmFleetExpenses_storageMode_v1';
+
+  function persistStorageMode() {
+    try { localStorage.setItem(STORAGE_MODE_KEY, state.storageMode); } catch (e) { /* ignore */ }
+  }
+
+  function loadStorageMode() {
+    let raw = null;
+    try { raw = localStorage.getItem(STORAGE_MODE_KEY); } catch (e) { /* ignore */ }
+    if (raw === 'drive' || raw === 'local') state.storageMode = raw;
   }
 
   const DRIVE_KEY = 'farmFleetExpenses_drive_v1';
@@ -167,13 +183,12 @@
     return true;
   }
 
-  // The connect gate: called once at startup (silently — no Google popup) and
-  // again from the gate's "Connect Google Drive" button (interactively, which
-  // can pop a Google sign-in/consent window). Either way it's the one place
-  // that decides what the app's starting data is: whatever's already saved in
-  // Drive if a backup file exists there, or a fresh default set (immediately
-  // saved back to Drive so the file exists from here on) if this is the very
-  // first time this Drive account has used the app.
+  // Connects to Drive and decides what the app's data should be: whatever's
+  // already saved there if a backup file exists, or the current in-memory
+  // data (saved back to Drive right away, so the file exists from here on)
+  // if this is the very first time this Drive account has been used with the
+  // app. Called both from the background sync at startup (silent — no Google
+  // popup) and from Settings when the Client ID is first saved (interactive).
   async function loadOrInitFromDrive(interactive) {
     const meta = await Drive.checkBackup(state.driveClientId, state.driveFolderId, interactive);
     handleStaleDriveFolder();
@@ -182,15 +197,33 @@
       applyRestoredData(data);
       state.driveFileId = meta.id;
     } else {
-      seedDefaults();
       const payload = buildBackupPayload();
       state.driveFileId = await Drive.backup(state.driveClientId, '', payload, false, state.driveFolderId);
       handleStaleDriveFolder();
     }
-    driveDirty = false;
+    dataDirty = false;
     state.driveLastBackupAt = new Date().toISOString();
     persistDriveConfig();
-    state.appReady = true;
+  }
+
+  // Same idea for a local folder: load what's there, or write the current
+  // in-memory data as the folder's first backup. `requestIfNeeded` should
+  // only be true when called from a real click (permission prompts require a
+  // user gesture); a silent background attempt just uses whatever's already
+  // granted, and sets `localNeedsReconnect` if it isn't.
+  async function loadOrInitFromLocal(requestIfNeeded) {
+    const meta = await LocalStore.checkBackup(requestIfNeeded);
+    if (!meta) return; // no folder connected yet
+    state.localFolderName = meta.name;
+    if (!meta.missing) {
+      const data = await LocalStore.restore(requestIfNeeded);
+      applyRestoredData(data);
+    } else {
+      await LocalStore.backup(buildBackupPayload(), requestIfNeeded);
+    }
+    dataDirty = false;
+    state.localLastSavedAt = new Date().toISOString();
+    state.localNeedsReconnect = false;
   }
 
   async function performDriveRestore(fileId) {
@@ -212,7 +245,7 @@
       }
       const data = await Drive.restore(state.driveClientId, fileId, false);
       applyRestoredData(data);
-      driveDirty = false;
+      dataDirty = false;
       state.driveFileId = fileId;
       state.driveLastBackupAt = new Date().toISOString();
       state.driveMessage = 'Loaded the latest backup from Google Drive.';
@@ -499,7 +532,6 @@
 
   function renderRoot() {
     if (state.loading) return `<div style="padding:60px;text-align:center;color:var(--color-neutral-700);">Loading…</div>`;
-    if (!state.appReady) return renderConnectGate();
     return `
       <div style="min-height:100vh;display:flex;flex-direction:column;">
         ${renderNav()}
@@ -511,49 +543,15 @@
     `;
   }
 
-  // Shown before anything else in the app until Google Drive is connected —
-  // Drive is the only place this app's data lives, so there's nothing to show
-  // until a backup file has been found or created there.
+  // Google Drive setup fields, shown in Settings → Storage the first time
+  // Drive is picked as the storage mode (before a Client ID is saved).
   function driveSetupFields() {
     return `
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div class="field"><label>Google OAuth Client ID</label><input class="input" id="drive-setup-client-id" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
         <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" id="drive-setup-api-key" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
         <div class="field"><label>Google Cloud project number (needed alongside the API key)</label><input class="input" id="drive-setup-app-id" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="e.g. 123456789012"></div>
-        <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${!state.driveClientIdDraft.trim() ? 'disabled' : ''}>Save &amp; connect</button></div>
-      </div>
-    `;
-  }
-
-  function renderConnectGate() {
-    const needsSetup = !state.driveClientId;
-    return `
-      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
-        <div class="card" style="max-width:520px;width:100%;padding:32px;">
-          <button class="btn btn-ghost" data-action="goBack" style="margin-bottom:16px;padding:6px 10px;">← Back</button>
-          <h1 style="font-size:24px;margin:0 0 12px;">Connect Google Drive</h1>
-          <p style="color:var(--color-neutral-700);font-size:14px;line-height:1.6;margin:0 0 20px;">
-            Farm Fleet Expenses keeps everything — categories, equipment, suppliers, and every
-            expense — in one file in your Google Drive. There's no local storage: connect your
-            Google account below and the app will load the latest copy automatically, on any
-            device.
-          </p>
-          ${needsSetup ? `
-            <div style="color:var(--color-neutral-700);font-size:13px;line-height:1.5;margin-bottom:14px;">
-              One-time setup, done once per site: create an OAuth Client ID (Web application) at
-              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
-              enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
-              <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in
-              this browser, just enough to bootstrap the connection. The app will only ever be able to see or
-              edit the one file it creates for itself, never the rest of your Drive.
-            </div>
-            ${driveSetupFields()}
-          ` : `
-            <button class="btn btn-primary" data-action="connectDriveGate" ${state.gateBusy ? 'disabled' : ''} style="width:100%;padding:14px;font-size:16px;">${state.gateBusy ? 'Connecting…' : 'Connect Google Drive'}</button>
-            <button class="btn btn-ghost" data-action="editDriveSetupInGate" style="margin-top:10px;width:100%;">Use a different Client ID</button>
-          `}
-          ${state.gateError ? `<div style="margin-top:16px;color:var(--color-accent-700);font-size:13px;">${esc(state.gateError)}</div>` : ''}
-        </div>
+        <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${state.driveBusy || !state.driveClientIdDraft.trim() ? 'disabled' : ''}>${state.driveBusy ? 'Connecting…' : 'Save & connect'}</button></div>
       </div>
     `;
   }
@@ -579,15 +577,20 @@
     return `<button class="btn ${active ? 'btn-primary' : 'btn-ghost'}" data-action="setView" data-view="${view}" ${extra || ''}>${label}</button>`;
   }
 
+  function navSaveBusy() {
+    return state.storageMode === 'drive' ? state.driveBusy : state.storageMode === 'local' ? state.localBusy : false;
+  }
+
   function renderNav() {
     const v = state.view;
     return `
       <div class="nav" style="justify-content:space-between;padding:20px 44px;min-height:96px;">
         <div style="display:flex;align-items:center;gap:16px;">
           <div class="nav-brand">Veteran Equipment Expense</div>
-          <button data-action="driveBackupNow" aria-label="Back up to Google Drive" title="${state.driveBusy ? 'Backing up…' : 'Back up to Google Drive'}" ${state.driveBusy ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
+          ${state.storageMode !== 'none' ? `
+          <button data-action="headerSaveNow" aria-label="Save now" title="${navSaveBusy() ? 'Saving…' : 'Save now'}" ${navSaveBusy() ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
-          </button>
+          </button>` : ''}
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           ${navBtn('dashboard', 'Dashboard', v === 'dashboard', 'style="font-size:17px;padding:14px 22px;"')}
@@ -1415,6 +1418,22 @@
 
   function renderDriveBackupSection() {
     const isError = /failed|expired|Add your|Could not/i.test(state.driveMessage || '');
+    if (!state.driveClientId) {
+      return `
+        <div class="card" style="padding:16px 20px;">
+          <div class="card-title" style="margin-bottom:8px;">Google Drive</div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;margin-bottom:14px;">
+            One-time setup, done once per Google account: create an OAuth Client ID (Web application) at
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
+            enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
+            <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
+            The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
+          </div>
+          ${driveSetupFields()}
+          ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
+        </div>
+      `;
+    }
     const canChooseFolder = state.driveApiKey && state.driveAppId;
     return `
       <div class="card" style="padding:16px 20px;">
@@ -1430,7 +1449,7 @@
         </div>
         ${state.driveRestoreConfirming ? `
           <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="color:var(--color-accent-700);">This replaces everything on this device with what's saved in Google Drive. Any local changes not yet backed up will be lost.</div>
+            <div style="color:var(--color-accent-700);">This replaces everything currently loaded with what's saved in Google Drive. Any changes not yet saved will be lost.</div>
             <button class="btn btn-primary" data-action="doDriveRestore">Yes, load from Drive</button>
             <button class="btn btn-ghost" data-action="cancelDriveRestore">Cancel</button>
           </div>
@@ -1448,6 +1467,61 @@
         </div>
         ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
       </div>
+    `;
+  }
+
+  function renderLocalFolderSection() {
+    if (!LocalStore.supported()) {
+      return `
+        <div class="card" style="padding:16px 20px;">
+          <div class="card-title" style="margin-bottom:8px;">A folder on this computer</div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">
+            This browser doesn't support picking a local folder to save to — that needs Chrome or Edge on a
+            computer. Try Google Drive instead, or open this app in a supported browser.
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="card" style="padding:16px 20px;">
+        <div class="card-title" style="margin-bottom:8px;">A folder on this computer</div>
+        <div class="card-meta" style="margin-bottom:12px;">Saves one file (farm-fleet-expenses-backup.json) directly into a folder you choose. Only works in this browser, on this device — nothing syncs anywhere else, and only Chrome/Edge support it.</div>
+        <div style="margin-bottom:8px;">Folder: <strong>${state.localFolderName ? esc(state.localFolderName) : 'Not chosen yet'}</strong></div>
+        <div style="margin-bottom:12px;">Last saved: <strong>${state.localLastSavedAt ? new Date(state.localLastSavedAt).toLocaleString() : 'Never'}</strong></div>
+        ${state.localNeedsReconnect ? `<div style="margin-bottom:12px;padding:12px 16px;border:2px solid var(--color-accent);color:var(--color-accent-700);font-size:13px;">This browser needs you to reconnect to the folder before it can load or save — click "Choose folder…" and pick the same one again.</div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" data-action="chooseLocalFolder" ${state.localBusy ? 'disabled' : ''}>${state.localBusy ? 'Working…' : (state.localFolderName ? 'Choose a different folder…' : 'Choose folder…')}</button>
+          ${state.localFolderName ? `<button class="btn btn-secondary" data-action="localSaveNow" ${state.localBusy ? 'disabled' : ''}>Save now</button>` : ''}
+          ${state.localFolderName ? `<button class="btn btn-secondary" data-action="confirmLocalRestoreClick" ${state.localBusy ? 'disabled' : ''}>Load latest from folder</button>` : ''}
+        </div>
+        ${state.localRestoreConfirming ? `
+          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="color:var(--color-accent-700);">This replaces everything currently loaded with what's saved in that folder. Any changes not yet saved will be lost.</div>
+            <button class="btn btn-primary" data-action="doLocalRestore">Yes, load from folder</button>
+            <button class="btn btn-ghost" data-action="cancelLocalRestore">Cancel</button>
+          </div>
+        ` : ''}
+        ${state.localMessage ? `<div style="margin-top:10px;font-size:13px;color:var(--color-neutral-700);">${esc(state.localMessage)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function renderStorageSection() {
+    const modes = [
+      { key: 'none', label: 'Not connected' },
+      { key: 'drive', label: 'Google Drive' },
+      { key: 'local', label: 'A folder on this computer' },
+    ];
+    return `
+      <div class="card" style="padding:16px 20px;margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:8px;">Where your data lives</div>
+        <div class="card-meta" style="margin-bottom:14px;">Pick one. Whatever's selected is where changes save automatically every 15 seconds, and where the app loads its data from each time you open it. Switching here doesn't erase anything — it just changes where future saves go.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${modes.map((m) => `<button class="btn ${state.storageMode === m.key ? 'btn-primary' : 'btn-ghost'}" data-action="setStorageMode" data-mode="${m.key}">${m.label}</button>`).join('')}
+        </div>
+      </div>
+      ${state.storageMode === 'drive' ? renderDriveBackupSection() : ''}
+      ${state.storageMode === 'local' ? renderLocalFolderSection() : ''}
     `;
   }
 
@@ -1508,7 +1582,7 @@
       { key: 'categories', label: 'Categories' },
       { key: 'equipment', label: 'Equipment' },
       { key: 'suppliers', label: 'Suppliers' },
-      { key: 'backup', label: 'Backup' },
+      { key: 'backup', label: 'Storage' },
     ];
     const tab = TABS.some((t) => t.key === state.settingsTab) ? state.settingsTab : 'general';
 
@@ -1531,11 +1605,11 @@
     } else if (tab === 'suppliers') {
       body = settingsSectionHeader('Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal">+ Add supplier</button>`) + supBody;
     } else {
-      body = settingsSectionHeader('Backup', `<button class="btn btn-secondary" data-action="backupNow">Download a copy as JSON</button>`) + `
+      body = settingsSectionHeader('Storage', `<button class="btn btn-secondary" data-action="backupNow">Download a copy as JSON</button>`) + `
         <div class="card" style="padding:16px 20px;margin-bottom:16px;">
-          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently loaded — every category, equipment record, expense, and supplier. Google Drive (below) is the real, always-current copy; this is just a manual export for your own records.</div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently loaded — every category, equipment record, expense, and supplier. Whatever's picked below is the real, always-current copy; this is just a manual export for your own records.</div>
         </div>
-        ${renderDriveBackupSection()}
+        ${renderStorageSection()}
       `;
     }
 
@@ -1774,7 +1848,7 @@
     setDriveClientIdDraft(e) { state.driveClientIdDraft = e.target.value; render(); },
     setDriveApiKeyDraft(e) { state.driveApiKeyDraft = e.target.value; render(); },
     setDriveAppIdDraft(e) { state.driveAppIdDraft = e.target.value; render(); },
-    saveDriveSetup() {
+    async saveDriveSetup() {
       const id = state.driveClientIdDraft.trim();
       if (!id) return;
       state.driveClientId = id;
@@ -1785,10 +1859,19 @@
       state.driveAppIdDraft = '';
       state.driveFileId = '';
       state.driveMessage = '';
-      state.gateError = '';
       persistDriveConfig();
+      state.driveBusy = true;
       render();
-      if (!state.appReady) Actions.connectDriveGate();
+      try {
+        await loadOrInitFromDrive(true);
+        state.driveMessage = 'Connected to Google Drive.';
+      } catch (err) {
+        state.driveMessage = err.message === 'UNAUTHORIZED'
+          ? 'Google sign-in was cancelled or access was denied — try again.'
+          : ('Could not connect: ' + err.message);
+      }
+      state.driveBusy = false;
+      render();
     },
     saveDriveApiKey() {
       const key = state.driveApiKeyDraft.trim();
@@ -1799,32 +1882,6 @@
       state.driveApiKeyDraft = '';
       state.driveAppIdDraft = '';
       state.driveMessage = '';
-      persistDriveConfig();
-      render();
-    },
-    async connectDriveGate() {
-      if (state.gateBusy) return;
-      state.gateBusy = true;
-      state.gateError = '';
-      render();
-      try {
-        await loadOrInitFromDrive(true);
-      } catch (err) {
-        state.gateError = err.message === 'UNAUTHORIZED'
-          ? 'Google sign-in was cancelled or access was denied — try again.'
-          : ('Could not connect: ' + err.message);
-      }
-      state.gateBusy = false;
-      render();
-    },
-    goBack() { window.history.back(); },
-    editDriveSetupInGate() {
-      Drive.reset();
-      state.driveClientId = '';
-      state.driveApiKey = '';
-      state.driveAppId = '';
-      state.driveFileId = '';
-      state.gateError = '';
       persistDriveConfig();
       render();
     },
@@ -1871,7 +1928,7 @@
           ? 'Backed up to Google Drive — the saved folder wasn’t reachable, so this went to "My Drive" root instead.'
           : 'Backed up to Google Drive.';
         state.loadError = '';
-        driveDirty = false;
+        dataDirty = false;
         persistDriveConfig();
         showDriveToast('Backed up to Google Drive.');
       } catch (err) {
@@ -1889,6 +1946,95 @@
     doDriveRestore() {
       state.driveRestoreConfirming = false;
       performDriveRestore(state.driveFileId);
+    },
+
+    setStorageMode(e, d) {
+      state.storageMode = d.mode;
+      state.driveMessage = '';
+      state.localMessage = '';
+      persistStorageMode();
+      render();
+      if (d.mode === 'local') Actions.refreshLocalFolderName();
+    },
+    async refreshLocalFolderName() {
+      try {
+        const name = await LocalStore.currentFolderName();
+        if (name) { state.localFolderName = name; render(); }
+      } catch (e) { /* ignore */ }
+    },
+    headerSaveNow() {
+      if (state.storageMode === 'drive') Actions.driveBackupNow();
+      else if (state.storageMode === 'local') Actions.localSaveNow();
+    },
+    async chooseLocalFolder() {
+      state.localBusy = true;
+      state.localMessage = '';
+      render();
+      try {
+        const name = await LocalStore.pickFolder();
+        state.localFolderName = name;
+        state.localNeedsReconnect = false;
+        await LocalStore.backup(buildBackupPayload(), true);
+        state.localLastSavedAt = new Date().toISOString();
+        dataDirty = false;
+        state.localMessage = 'Folder set to "' + name + '".';
+      } catch (err) {
+        state.localMessage = 'Could not set folder: ' + err.message;
+      }
+      state.localBusy = false;
+      render();
+    },
+    async localSaveNow() {
+      if (state.localBusy) return;
+      state.localBusy = true;
+      state.localMessage = '';
+      render();
+      try {
+        await LocalStore.backup(buildBackupPayload(), true);
+        state.localLastSavedAt = new Date().toISOString();
+        state.localNeedsReconnect = false;
+        dataDirty = false;
+        state.localMessage = 'Saved to the local folder.';
+        showDriveToast('Saved to local folder.');
+      } catch (err) {
+        if (err.message === 'PERMISSION_NEEDED') {
+          state.localNeedsReconnect = true;
+          state.localMessage = 'Click "Choose folder…" again to reconnect.';
+        } else {
+          state.localMessage = 'Save failed: ' + err.message;
+        }
+      }
+      state.localBusy = false;
+      render();
+    },
+    confirmLocalRestoreClick() { state.localRestoreConfirming = true; render(); },
+    cancelLocalRestore() { state.localRestoreConfirming = false; render(); },
+    async doLocalRestore() {
+      state.localRestoreConfirming = false;
+      state.localBusy = true;
+      state.localMessage = '';
+      render();
+      try {
+        const data = await LocalStore.restore(true);
+        applyRestoredData(data);
+        dataDirty = false;
+        state.localNeedsReconnect = false;
+        state.localMessage = 'Loaded from the local folder.';
+        state.loadError = '';
+        state.view = 'dashboard';
+        state.selectedCategory = null;
+        state.detailEquipmentId = null;
+        showDriveToast('Loaded from local folder.');
+      } catch (err) {
+        if (err.message === 'PERMISSION_NEEDED') {
+          state.localNeedsReconnect = true;
+          state.localMessage = 'Click "Choose folder…" again to reconnect.';
+        } else {
+          state.localMessage = 'Load failed: ' + err.message;
+        }
+      }
+      state.localBusy = false;
+      render();
     },
 
     setDashboardYear(e) { state.dashboardYear = parseInt(e.target.value, 10); render(); },
@@ -2228,38 +2374,61 @@
     driveToastTimer = setTimeout(() => { state.driveToast = ''; render(); }, 4000);
   }
 
-  // Runs every 15s, but only once the connect gate has let the user into the
-  // app — auto-save should never pop a Google consent screen or nag the user
-  // with error banners on its own, so it silently does nothing if a token
-  // isn't already available (rare — the gate itself just proved one works).
+  // Runs every 15s. Silent by design either way — auto-save should never pop
+  // a Google consent screen, a folder-permission prompt, or an error banner
+  // on its own; it just quietly does nothing if the active storage isn't
+  // reachable right now (Settings shows a way to reconnect).
   async function autoSaveDriveTick() {
-    if (!state.appReady || state.driveBusy || !driveDirty) return;
+    if (state.driveBusy || !dataDirty) return;
     try {
       const payload = buildBackupPayload();
       const fileId = await Drive.backup(state.driveClientId, state.driveFileId, payload, false, state.driveFolderId);
       state.driveFileId = fileId;
       state.driveLastBackupAt = new Date().toISOString();
       handleStaleDriveFolder();
-      driveDirty = false;
+      dataDirty = false;
       persistDriveConfig();
       render();
     } catch (err) { /* silent — see comment above */ }
   }
 
+  async function autoSaveLocalTick() {
+    if (state.localBusy || !dataDirty) return;
+    try {
+      await LocalStore.backup(buildBackupPayload(), false);
+      state.localLastSavedAt = new Date().toISOString();
+      state.localNeedsReconnect = false;
+      dataDirty = false;
+      render();
+    } catch (err) {
+      if (err.message === 'PERMISSION_NEEDED') state.localNeedsReconnect = true;
+    }
+  }
+
+  async function autoSaveTick() {
+    if (state.storageMode === 'drive' && state.driveClientId) await autoSaveDriveTick();
+    else if (state.storageMode === 'local') await autoSaveLocalTick();
+  }
+
   async function init() {
+    loadStorageMode();
     loadDriveConfig();
+    seedDefaults();
     state.loading = false;
     render();
-    setInterval(autoSaveDriveTick, 15000);
-    if (state.driveClientId) {
-      state.gateBusy = true;
-      render();
-      try {
+    setInterval(autoSaveTick, 15000);
+    // Non-blocking background sync: the dashboard is already showing sample
+    // data by the time this resolves, so a real backend's data (if any)
+    // simply replaces it once it arrives — nothing gates the UI on this.
+    try {
+      if (state.storageMode === 'drive' && state.driveClientId) {
         await loadOrInitFromDrive(false);
-      } catch (err) { /* silent token unavailable — gate shows the Connect button instead */ }
-      state.gateBusy = false;
-      render();
-    }
+        render();
+      } else if (state.storageMode === 'local') {
+        await loadOrInitFromLocal(false);
+        render();
+      }
+    } catch (err) { /* silent — Settings shows a way to reconnect */ }
   }
 
   init();

@@ -15,19 +15,18 @@ self-contained app: plain HTML/CSS/JS, no build step, no server. A GitHub Action
 workflow (`.github/workflows/pages.yml`) publishes that folder to GitHub Pages on every
 push to `main`, at `https://<owner>.github.io/<repo>/`.
 
-  **All real data — equipment, categories, suppliers, invoices, and the settings
-  password — lives in a single JSON file in the user's own Google Drive, never in the
-  browser.** The first thing the app shows is a "Connect Google Drive" gate; nothing
-  else is usable until that connects, at which point it automatically loads the latest
-  copy of that file (or creates a fresh one, seeded with sample equipment, the very
-  first time). That's what makes the same data show up on every device — sign in with
-  the same Google account anywhere and the app loads exactly what's there. The only
-  thing this browser keeps locally is the Drive connection config itself (OAuth Client
-  ID, optional API key/project number/folder) — that's unavoidable bootstrap config, not
-  app data, and different browsers/devices can each point at their own Cloud project if
-  needed. A single settings password (default `1234`, changeable in Settings, stored as
-  part of the Drive file like everything else) gates admin actions (add/delete
-  equipment, categories, suppliers) the same way the original design prototype did.
+  The app opens straight to the dashboard with sample data — nothing to connect or set
+  up first. **Settings → Storage** (password-protected, like the rest of admin) is where
+  you pick where the real data actually lives: **Google Drive**, **a folder on this
+  computer**, or nothing (just this session, unsaved). Whichever is picked is what
+  changes auto-save to every 15 seconds, and what the app loads from the next time it
+  opens — see "Choosing where data lives" below. The only things this browser ever keeps
+  locally are the connection config for whichever storage is picked (a Drive Client ID,
+  or a reference to the chosen local folder) — never the actual categories, equipment, or
+  invoices, so switching storage never loses anything already saved elsewhere. A single
+  settings password (default `1234`, changeable in Settings, saved as part of the data
+  itself) gates admin actions (add/delete equipment, categories, suppliers) the same way
+  the original design prototype did.
 
 **2. Optional real backend, self-hosted.** `server/` is a Node/Express + SQLite backend
 with real per-mechanic accounts (bcrypt-hashed passwords, sessions) and a shared
@@ -63,7 +62,8 @@ The prototype (`../project/Farm Fleet Expenses.dc.html`) was itself a single-dev
 localStorage-only mockup with a shared settings password. The static build here differs
 in two ways:
 
-- **Data lives in Google Drive, not the browser** — see "Connecting Google Drive" below.
+- **Data lives wherever Settings → Storage points it** — Google Drive, a local folder, or
+  nowhere (unsaved) — see "Choosing where data lives" below.
 - **Invoice reading is fully in-house** — no AI/LLM call. PDFs are read via pdf.js's text
   layer; photos/scans go through Tesseract OCR in the browser; both libraries load on
   demand from a CDN, so **the device viewing the page needs internet access** for that
@@ -73,38 +73,50 @@ in two ways:
   motif) instead of an uploaded photo — no image hosting needed, and it always renders on
   Pages with no extra request.
 
-## Connecting Google Drive
+## Choosing where data lives
 
-The very first screen the app shows is a "Connect Google Drive" gate — there's nothing
-to skip past, because Google Drive is where the data actually lives (one JSON file per
-Cloud project's Client ID: `farm-fleet-expenses-backup.json`). It's entirely client-side
-(`app/public/drive.js`, using Google Identity Services and the Google Picker — no server,
-no client secret) and needs a one-time setup per deployment:
+Settings → Storage has three options — pick one:
+
+- **Not connected** — the default. Sample data only, nothing saves anywhere; closing the
+  tab loses it. Fine for trying the app out.
+- **Google Drive** — one JSON file (`farm-fleet-expenses-backup.json`) in the signed-in
+  Google account's Drive. Works from any device, any browser, as long as it signs in with
+  the same Google account.
+- **A folder on this computer** — one JSON file written directly into a folder you pick,
+  via the browser's own file system access. Only works in **Chrome or Edge on a
+  computer** (there's no equivalent API in Firefox or Safari, or on mobile), and only in
+  *this* browser on *this* device — nothing syncs anywhere else.
+
+Whichever is picked, changes **auto-save every 15 seconds** whenever there's something
+new to save — the cloud icon in the header does the same thing on demand — and Settings
+→ Storage has a "Load latest" button to pull down whatever's newest there (useful after
+using a different device, or if something else changed the file). There's also a
+"Download a copy as JSON" button for a manual, point-in-time export — that's just an
+extra safety copy, not how the app actually persists anything.
+
+### Google Drive setup
+
+Entirely client-side (`app/public/drive.js`, using Google Identity Services and the
+Google Picker — no server, no client secret), and needs a one-time setup per Google
+account/Cloud project:
 
 1. In the [Google Cloud Console credentials page](https://console.cloud.google.com/apis/credentials),
    create an **OAuth Client ID** of type **Web application**.
 2. Under **Authorized JavaScript origins**, add the site's origin — e.g.
    `https://admin-vet.github.io` (no path, no trailing slash).
 3. Enable the **Google Drive API** for that Cloud project (APIs & Services → Library).
-4. Paste the resulting Client ID into the gate. It's saved only in that browser's
-   `localStorage` — that's the one piece of bootstrap config the app keeps locally, since
-   it's needed just to start the OAuth connection; no actual app data ever goes there.
+4. In Settings → Storage, click **Google Drive**, then paste the resulting Client ID.
+   It's saved only in that browser's `localStorage` — that's the one piece of bootstrap
+   config the app keeps locally, since it's needed just to start the OAuth connection; no
+   actual app data ever goes there.
 
-Saving the Client ID immediately tries to connect: sign in with the Google account you
-want this data attached to. The app then checks Drive for an existing
+Saving the Client ID immediately tries to connect: sign in with the Google account this
+data should live in. The app then checks Drive for an existing
 `farm-fleet-expenses-backup.json` — if this is the first time that account has used the
-app, it seeds the default sample categories/equipment and creates that file right away;
-otherwise it loads whatever's already there. From that point on, every device that signs
-in with the *same Google account and Client ID* sees the exact same data — the app
-reconnects silently (no popup) on later visits as long as the browser still has a valid
-Google session, and falls back to showing the "Connect Google Drive" button again if not.
-
-Once connected, changes **auto-save to Drive every 15 seconds** whenever there's
-something new to save — the cloud icon in the header does the same thing on demand, and
-Settings → Backup → "Load latest from Google Drive" pulls down whatever's newest there
-(useful if another device saved something more recent). Settings → Backup also has a
-"Download a copy as JSON" button for a manual, point-in-time export — that's just an
-extra safety copy, not how the app actually persists anything.
+app, it saves whatever's currently loaded as that file right away; otherwise it loads
+whatever's already there. From that point on, every device that signs in with the *same
+Google account and Client ID* sees the exact same data — the app reconnects silently (no
+popup) on later visits as long as the browser still has a valid Google session.
 
 **Optional — to pick which Drive folder the file goes in:** two more things are needed —
 
@@ -119,13 +131,25 @@ extra safety copy, not how the app actually persists anything.
    fails with a 404 "File not found" on that folder's ID, because Drive never registered
    the permission grant.
 
-Paste both into the connect gate (or later, in Settings → Backup). That unlocks a
-"Choose folder…" button that opens Google's own folder picker — the app never lists your
-Drive itself, it only receives the one folder you pick. Without these, the file goes in
-the root of "My Drive".
+Paste both into Settings → Storage. That unlocks a "Choose folder…" button that opens
+Google's own folder picker — the app never lists your Drive itself, it only receives the
+one folder you pick. Without these, the file goes in the root of "My Drive".
 
 The app requests the `drive.file` scope only, meaning it can see or edit just the one
 file it creates for itself — never the rest of anyone's Drive. Because the OAuth consent
 screen for a new Cloud project starts in "Testing" mode, Google will show an "unverified
 app" warning the user has to click through until the project is published/verified;
-that's expected for a small internal tool.
+that's expected for a small internal tool. **For a product sold to multiple customers,
+each customer should create their own free Cloud project/Client ID** rather than sharing
+one — API quotas are per-project, and Google's unverified-app test-user cap (~100 users)
+applies per project too.
+
+### Local folder setup
+
+In Settings → Storage, click **A folder on this computer**, then **Choose folder…** and
+pick (or create) a folder — the browser will ask to confirm write access. That's it;
+nothing to configure. The browser remembers the folder across reloads in Chrome/Edge, but
+may ask you to reconnect (click "Choose folder…" again and pick the same folder) after
+enough time has passed, since it re-checks permission for security. If the button that
+picks a folder doesn't appear at all, the browser doesn't support this feature — Google
+Drive is the alternative for anyone not on Chrome/Edge.

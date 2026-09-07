@@ -32,6 +32,7 @@ jobs:
           sed -i 's|="styles\.css"|="styles.css?v='"$SHA"'"|' index.html
           sed -i 's|="invoice-parser\.js"|="invoice-parser.js?v='"$SHA"'"|' index.html
           sed -i 's|="drive\.js"|="drive.js?v='"$SHA"'"|' index.html
+          sed -i 's|="localstore\.js"|="localstore.js?v='"$SHA"'"|' index.html
           sed -i 's|="app\.js"|="app.js?v='"$SHA"'"|' index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
