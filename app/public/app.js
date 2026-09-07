@@ -62,7 +62,7 @@
     driveBusy: false, driveMessage: '', driveToast: '',
 
     localFolderName: '', localLastSavedAt: null, localBusy: false, localMessage: '',
-    localNeedsReconnect: false,
+    localNeedsReconnect: false, localFolderChangeConfirming: false,
   };
 
   // ---------------------------------------------------------------- data store
@@ -556,7 +556,7 @@
         <div class="field"><label>Google OAuth Client ID</label><input class="input" id="drive-setup-client-id" data-action="setDriveClientIdDraft" data-on="input" value="${attr(state.driveClientIdDraft)}" placeholder="xxxxxxxxxx.apps.googleusercontent.com"></div>
         <div class="field"><label>Google API key (optional, enables folder selection)</label><input class="input" id="drive-setup-api-key" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="AIza…"></div>
         <div class="field"><label>Google Cloud project number (needed alongside the API key)</label><input class="input" id="drive-setup-app-id" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="e.g. 123456789012"></div>
-        <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${state.driveBusy || !state.driveClientIdDraft.trim() ? 'disabled' : ''}>${state.driveBusy ? 'Connecting…' : 'Save & connect'}</button></div>
+        <div><button class="btn btn-secondary" data-action="saveDriveSetup" ${state.driveBusy || !state.driveClientIdDraft.trim() ? 'disabled' : ''}>${state.driveBusy ? 'Connecting…' : 'Connect'}</button></div>
       </div>
     `;
   }
@@ -866,7 +866,7 @@
           ${isPdf ? `<div style="padding:40px 12px;text-align:center;color:var(--color-neutral-700);">PDF uploaded — preview not shown</div>` : ''}
         </div>
         <div style="margin-top:8px;font-size:13px;color:var(--color-neutral-700);">${esc(p.fileName)}</div>
-        <button class="btn btn-ghost btn-block" style="margin-top:16px;" data-action="cancelPending">Cancel &amp; upload a different file</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:16px;" data-action="cancelPending">Upload different file</button>
       </div>
       <div style="margin-top:32px;">
         ${p.extracting ? `<div class="tag tag-accent" style="margin-bottom:16px;">${esc(p.status || 'Reading invoice…')}</div>` : ''}
@@ -1058,7 +1058,7 @@
 
     return `
       <div style="padding:40px 32px;max-width:1000px;width:100%;margin:0 auto;box-sizing:border-box;">
-        <button class="btn btn-ghost" style="margin-bottom:16px;" data-action="backToHistory">← Back to Equipment History</button>
+        <button class="btn btn-ghost" style="margin-bottom:16px;" data-action="backToHistory">← Back</button>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <h1 style="font-size:28px;margin:0;">${esc(eq.name)}</h1>
@@ -1446,11 +1446,11 @@
     const canChooseFolder = state.driveApiKey && state.driveAppId;
     const statusInfo = `This is where your data actually lives — every change auto-saves here every 15
       seconds. Use the icons in the header to save or download the latest on demand.`;
-    const apiKeyInfo = `Needed only for "Choose folder…". Create an API key on the same credentials page,
+    const apiKeyInfo = `Needed only for "Select folder". Create an API key on the same credentials page,
       enable "Picker API" in the Library, then under "API restrictions" allow both "Picker API" and
       "Google Drive API".`;
     const appIdInfo = `Your Cloud project's project number (not the project ID, not the Client ID) —
-      found on the Cloud Console dashboard. Needed alongside the API key for "Choose folder…" to work
+      found on the Cloud Console dashboard. Needed alongside the API key for "Select folder" to work
       reliably.`;
     return `
       <div class="card" style="padding:16px 20px;">
@@ -1461,9 +1461,9 @@
         <div style="margin-bottom:8px;">Last saved to Drive: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : 'Save to Google Drive now'}</button>
-          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !canChooseFolder ? 'disabled' : ''} title="${canChooseFolder ? '' : 'Add a Google API key and project number below to enable this'}">Choose folder…</button>
-          ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
+          <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : 'Save now'}</button>
+          <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !canChooseFolder ? 'disabled' : ''} title="${canChooseFolder ? '' : 'Add a Google API key and project number below to enable this'}">Select folder</button>
+          ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use Drive root</button>` : ''}
         </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
           <div class="field" style="flex:1;min-width:220px;">
@@ -1504,9 +1504,9 @@
         </div>
         <div style="margin-bottom:8px;">Folder: <strong>${state.localFolderName ? esc(state.localFolderName) : 'Not chosen yet'}</strong></div>
         <div style="margin-bottom:12px;">Last saved: <strong>${state.localLastSavedAt ? new Date(state.localLastSavedAt).toLocaleString() : 'Never'}</strong></div>
-        ${state.localNeedsReconnect ? `<div style="margin-bottom:12px;padding:12px 16px;border:2px solid var(--color-accent);color:var(--color-accent-700);font-size:13px;">This browser needs you to reconnect to the folder before it can load or save — click "Choose folder…" and pick the same one again.</div>` : ''}
+        ${state.localNeedsReconnect ? `<div style="margin-bottom:12px;padding:12px 16px;border:2px solid var(--color-accent);color:var(--color-accent-700);font-size:13px;">This browser needs you to reconnect to the folder before it can load or save — click "Select folder" and pick the same one again.</div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" data-action="chooseLocalFolder" ${state.localBusy ? 'disabled' : ''}>${state.localBusy ? 'Working…' : (state.localFolderName ? 'Choose a different folder…' : 'Choose folder…')}</button>
+          <button class="btn btn-primary" data-action="${state.localFolderName ? 'confirmChangeLocalFolder' : 'chooseLocalFolder'}" ${state.localBusy ? 'disabled' : ''}>${state.localBusy ? 'Working…' : 'Select folder'}</button>
           ${state.localFolderName ? `<button class="btn btn-secondary" data-action="localSaveNow" ${state.localBusy ? 'disabled' : ''}>Save now</button>` : ''}
         </div>
         ${state.localMessage ? `<div style="margin-top:10px;font-size:13px;color:var(--color-neutral-700);">${esc(state.localMessage)}</div>` : ''}
@@ -1516,12 +1516,11 @@
 
   function renderStorageSection() {
     const modes = [
-      { key: 'none', label: 'Not connected' },
       { key: 'drive', label: 'Google Drive' },
       { key: 'local', label: 'Local' },
     ];
     const locked = state.storageMode !== 'none' && !state.storageChangeConfirming;
-    const currentLabel = (modes.find((m) => m.key === state.storageMode) || modes[0]).label;
+    const currentLabel = (modes.find((m) => m.key === state.storageMode) || {}).label || '';
     const modeInfo = `Whatever's selected is where changes save automatically every 15 seconds, and
       where the app loads its data from every time it opens. Switching doesn't erase anything — it just
       changes where future saves go, and it's locked once set so it doesn't get changed by accident.`;
@@ -1534,7 +1533,7 @@
         ${locked ? `
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div>Connected to: <strong>${esc(currentLabel)}</strong></div>
-            <button class="btn btn-ghost" data-action="startChangeStorage">Change storage location…</button>
+            <button class="btn btn-ghost" data-action="startChangeStorage">Change location</button>
           </div>
         ` : `
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1620,6 +1619,13 @@
             <button class="btn btn-secondary" data-action="saveChangePassword" ${!state.changePasswordDraft.trim() ? 'disabled' : ''}>Update password</button>
           </div>
         </div>
+        <div class="card">
+          <div class="card-title">Support</div>
+          <div class="card-body" style="margin:8px 0 0;color:var(--color-neutral-700);">
+            Contact us for support at <a href="mailto:electrical@veterancolony.com">electrical@veterancolony.com</a>.
+            Support is not free and is billed at $120/hour, one-hour minimum.
+          </div>
+        </div>
       `;
     } else if (tab === 'categories') {
       body = settingsSectionHeader('Categories', `<button class="btn btn-secondary" data-action="openCategoryAddModal">+ Add category</button>`) + catBody;
@@ -1628,7 +1634,7 @@
     } else if (tab === 'suppliers') {
       body = settingsSectionHeader('Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal">+ Add supplier</button>`) + supBody;
     } else {
-      body = settingsSectionHeader('Storage', `<button class="btn btn-secondary" data-action="backupNow">Download a copy as JSON</button>`) + `
+      body = settingsSectionHeader('Storage', `<button class="btn btn-secondary" data-action="backupNow">Download JSON</button>`) + `
         <div class="card" style="padding:16px 20px;margin-bottom:16px;">
           <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently loaded — every category, equipment record, expense, and supplier. Whatever's picked below is the real, always-current copy; this is just a manual export for your own records.</div>
         </div>
@@ -1784,7 +1790,15 @@
         <div class="dialog-backdrop"><div class="dialog">
           <div class="dialog-title">Download latest?</div>
           <div class="dialog-body">This replaces everything currently loaded with what's saved in ${esc(sourceLabel)}. Any changes not yet saved will be lost.</div>
-          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelRestoreLatest">Cancel</button><button class="btn btn-primary" data-action="doRestoreLatest">Yes, download latest</button></div>
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelRestoreLatest">Cancel</button><button class="btn btn-primary" data-action="doRestoreLatest">Download</button></div>
+        </div></div>`;
+    }
+    if (state.localFolderChangeConfirming) {
+      html += `
+        <div class="dialog-backdrop"><div class="dialog">
+          <div class="dialog-title">Change folder?</div>
+          <div class="dialog-body">If the folder you pick next already has a backup file in it, that data will load in and replace what's here. If it doesn't, what's currently loaded will be saved there instead. Auto-save will start going to the new folder from then on — this device won't touch "${esc(state.localFolderName)}" again unless you pick it back.</div>
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelChangeLocalFolder">Cancel</button><button class="btn btn-primary" data-action="chooseLocalFolder">Continue</button></div>
         </div></div>`;
     }
     return html;
@@ -2007,7 +2021,10 @@
       if (state.storageMode === 'drive') performDriveRestore(state.driveFileId);
       else if (state.storageMode === 'local') Actions.doLocalRestore();
     },
+    confirmChangeLocalFolder() { state.localFolderChangeConfirming = true; render(); },
+    cancelChangeLocalFolder() { state.localFolderChangeConfirming = false; render(); },
     async chooseLocalFolder() {
+      state.localFolderChangeConfirming = false;
       state.localBusy = true;
       state.localMessage = '';
       render();
@@ -2039,7 +2056,7 @@
       } catch (err) {
         if (err.message === 'PERMISSION_NEEDED') {
           state.localNeedsReconnect = true;
-          state.localMessage = 'Click "Choose folder…" again to reconnect.';
+          state.localMessage = 'Click "Select folder" again to reconnect.';
         } else {
           state.localMessage = 'Save failed: ' + err.message;
         }
@@ -2065,7 +2082,7 @@
       } catch (err) {
         if (err.message === 'PERMISSION_NEEDED') {
           state.localNeedsReconnect = true;
-          state.localMessage = 'Click "Choose folder…" again to reconnect.';
+          state.localMessage = 'Click "Select folder" again to reconnect.';
         } else {
           state.localMessage = 'Load failed: ' + err.message;
         }

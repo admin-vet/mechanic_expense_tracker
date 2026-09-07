@@ -76,10 +76,8 @@ in two ways:
 
 ## Choosing where data lives
 
-Settings → Storage has three options — pick one:
+Settings → Storage has two options — pick one:
 
-- **Not connected** — the default. Nothing saves anywhere; closing the tab loses whatever
-  was entered. Fine for a quick look, not for real use.
 - **Google Drive** — one JSON file (`farm-fleet-expenses-backup.json`) in the signed-in
   Google account's Drive. Works from any device, any browser, as long as it signs in with
   the same Google account.
@@ -87,6 +85,9 @@ Settings → Storage has three options — pick one:
   the browser's own file system access. Only works in **Chrome or Edge on a computer**
   (there's no equivalent API in Firefox or Safari, or on mobile), and only in *this*
   browser on *this* device — nothing syncs anywhere else.
+
+There's no "not connected" option — the app is meant to always have a real storage
+location behind it, not run disconnected.
 
 The moment Drive or Local is set up, the app checks that location for an existing backup
 and loads it in automatically — so pointing a fresh device at a Drive account or folder
@@ -98,14 +99,18 @@ always showing what's actually in Drive/the folder rather than something stale.
 
 Once a storage location is picked, **Settings → Storage locks it in** — the mode buttons
 collapse into a "Connected to: <mode>" summary, so it can't be changed by an idle click.
-A "Change storage location…" button is still there if you deliberately want to switch.
+A "Change location" button is still there if you deliberately want to switch. Switching
+the *local folder* specifically (not the mode) asks for confirmation first and explains
+what happens: if the new folder already has a backup, that loads in and replaces what's
+here; if not, what's currently loaded gets saved there instead — either way, auto-save
+starts going to the new folder from then on.
 
 Two icons appear in the header once a location is set: a cloud/save icon that backs up
 right now, and a download icon that pulls the latest down (after confirming, since it
 replaces whatever's currently loaded). Those replace the old "Load latest" button that
-used to live in Settings. There's also a "Download a copy as JSON" button in Settings for
-a manual, point-in-time export — that's just an extra safety copy, not how the app
-actually persists anything.
+used to live in Settings. There's also a "Download JSON" button in Settings for a manual,
+point-in-time export — that's just an extra safety copy, not how the app actually
+persists anything.
 
 Longer explanations (Drive setup steps, API key/project-number details, what "locked"
 means) live behind small "i" info buttons next to the relevant heading, instead of
@@ -149,7 +154,7 @@ popup) on later visits as long as the browser still has a valid Google session.
    fails with a 404 "File not found" on that folder's ID, because Drive never registered
    the permission grant.
 
-Paste both into Settings → Storage. That unlocks a "Choose folder…" button that opens
+Paste both into Settings → Storage. That unlocks a "Select folder" button that opens
 Google's own folder picker — the app never lists your Drive itself, it only receives the
 one folder you pick. Without these, the file goes in the root of "My Drive".
 
@@ -164,10 +169,15 @@ applies per project too.
 
 ### Local folder setup
 
-In Settings → Storage, click **Local**, then **Choose folder…** and
+In Settings → Storage, click **Local**, then **Select folder** and
 pick (or create) a folder — the browser will ask to confirm write access. That's it;
 nothing to configure. The browser remembers the folder across reloads in Chrome/Edge, but
-may ask you to reconnect (click "Choose folder…" again and pick the same folder) after
+may ask you to reconnect (click "Select folder" again and pick the same folder) after
 enough time has passed, since it re-checks permission for security. If the button that
 picks a folder doesn't appear at all, the browser doesn't support this feature — Google
 Drive is the alternative for anyone not on Chrome/Edge.
+
+## Support
+
+Settings → General has a support contact: electrical@veterancolony.com. Support isn't
+free — it's billed at $120/hour with a one-hour minimum.
