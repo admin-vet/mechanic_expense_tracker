@@ -116,6 +116,13 @@ used to live in Settings. There's also a "Download JSON" button in Settings for 
 point-in-time export — that's just an extra safety copy, not how the app actually
 persists anything.
 
+Next to it, **"Restore from file"** does the reverse: pick any backup JSON file (one
+downloaded from here earlier, or hand-built to match that same shape) and, after
+confirming, it replaces everything currently loaded — same as the header's download-latest
+icon, just from a file on this device instead of Drive/the local folder. If a storage
+location is already connected, the restored data is immediately saved back to it too, so
+it's not just sitting in memory until the next auto-save.
+
 Longer explanations (Drive setup steps, API key/project-number details, what "locked"
 means) live behind small "i" info buttons next to the relevant heading, instead of
 sitting on the page permanently — click one to see it, click it again (or click

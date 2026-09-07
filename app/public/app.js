@@ -55,6 +55,10 @@
     storageChangeAuthOpen: false, storageChangeAuthInput: '', storageChangeAuthError: false, storageChangeAuthPending: null,
     restoreConfirmOpen: false, // "download latest" confirm modal, triggered from the header
 
+    fileRestorePending: null, // parsed backup JSON, awaiting the confirm dialog below
+    fileRestoreConfirmOpen: false,
+    fileRestoreError: '',
+
     openInfoId: null, // which (if any) info popover is currently open
 
     driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
@@ -1713,9 +1717,16 @@
     } else if (tab === 'suppliers') {
       body = settingsSectionHeader('Suppliers', `<button class="btn btn-secondary" data-action="openSupplierAddModal">+ Add supplier</button>`) + supBody;
     } else {
-      body = settingsSectionHeader('Storage', `<button class="btn btn-secondary" data-action="backupNow">Download JSON</button>`) + `
+      body = settingsSectionHeader('Storage', `
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" data-action="backupNow">Download JSON</button>
+          <label class="btn btn-secondary" for="restore-file-input" style="cursor:pointer;margin:0;">Restore from file</label>
+          <input type="file" id="restore-file-input" accept="application/json" style="display:none;" data-action="restoreFromFileChange" data-on="change">
+        </div>
+      `) + `
         <div class="card" style="padding:16px 20px;margin-bottom:16px;">
-          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently loaded — every category, equipment record, expense, and supplier. Whatever's picked below is the real, always-current copy; this is just a manual export for your own records.</div>
+          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">Downloads a single JSON file with everything currently loaded — every category, equipment record, expense, and supplier. Whatever's picked below is the real, always-current copy; this is just a manual export for your own records. "Restore from file" does the reverse: pick a previously downloaded (or otherwise generated) backup JSON file and load it in, replacing everything currently here.</div>
+          ${state.fileRestoreError ? `<div style="color:var(--color-accent-700);font-size:13px;margin-top:8px;">${esc(state.fileRestoreError)}</div>` : ''}
         </div>
         ${renderStorageSection()}
       `;
@@ -1880,6 +1891,14 @@
           <div class="dialog-title">Download latest?</div>
           <div class="dialog-body">This replaces everything currently loaded with what's saved in ${esc(sourceLabel)}. Any changes not yet saved will be lost.</div>
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelRestoreLatest">Cancel</button><button class="btn btn-primary" data-action="doRestoreLatest">Download</button></div>
+        </div></div>`;
+    }
+    if (state.fileRestoreConfirmOpen) {
+      html += `
+        <div class="dialog-backdrop"><div class="dialog">
+          <div class="dialog-title">Restore from this file?</div>
+          <div class="dialog-body">This replaces everything currently loaded — every category, equipment record, expense, and supplier — with what's in the file you picked. This can't be undone.</div>
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelFileRestore">Cancel</button><button class="btn btn-primary" data-action="confirmFileRestore">Restore</button></div>
         </div></div>`;
     }
     if (state.localFolderChangeConfirming) {
@@ -2171,6 +2190,38 @@
       state.restoreConfirmOpen = false;
       if (state.storageMode === 'drive') performDriveRestore(state.driveFileId);
       else if (state.storageMode === 'local') Actions.doLocalRestore();
+    },
+
+    restoreFromFileChange(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!data || typeof data !== 'object' || !Array.isArray(data.equipment) || !Array.isArray(data.categories)) {
+            throw new Error('missing categories/equipment');
+          }
+          state.fileRestorePending = data;
+          state.fileRestoreConfirmOpen = true;
+          state.fileRestoreError = '';
+        } catch (err) {
+          state.fileRestoreError = "That doesn't look like a valid Farm Fleet Expenses backup file.";
+        }
+        render();
+      };
+      reader.onerror = () => { state.fileRestoreError = 'Could not read that file.'; render(); };
+      reader.readAsText(file);
+    },
+    cancelFileRestore() { state.fileRestoreConfirmOpen = false; state.fileRestorePending = null; render(); },
+    confirmFileRestore() {
+      const data = state.fileRestorePending;
+      state.fileRestoreConfirmOpen = false;
+      state.fileRestorePending = null;
+      applyRestoredData(data);
+      if (state.storageMode !== 'none') Actions.headerSaveNow();
+      render();
     },
     confirmChangeLocalFolder() {
       state.storageChangeAuthPending = 'folder';
