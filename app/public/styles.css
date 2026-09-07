@@ -111,3 +111,9 @@ textarea.input { min-height: 90px; resize: vertical; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
 
 .text-muted { color: var(--color-neutral-700); }
+
+.info-icon-wrap { position: relative; display: inline-flex; align-items: center; }
+.info-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--color-neutral-700); background: none; color: var(--color-neutral-700); cursor: pointer; font-size: 11px; font-weight: 700; line-height: 1; padding: 0; flex-shrink: 0; }
+.info-icon-btn:hover { border-color: var(--color-text); color: var(--color-text); }
+.info-popover { position: absolute; top: 24px; left: 0; z-index: 60; width: 300px; max-width: 80vw; padding: 12px 14px; border-radius: 10px; background: var(--color-surface); box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.5; color: var(--color-text); }
+.info-popover a { color: var(--color-accent); }

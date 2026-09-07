@@ -51,15 +51,18 @@
     analyticsMode: 'vendor', anYearA: null, anYearB: null, anSearch: '', anSort: 'biggestIncrease', anCrossVendor: '', anCrossEquipment: '',
 
     storageMode: 'none', // 'none' | 'drive' | 'local' — set in Settings → Storage
+    storageChangeConfirming: false, // true while the locked mode picker is expanded for editing
+    restoreConfirmOpen: false, // "download latest" confirm modal, triggered from the header
+
+    openInfoId: null, // which (if any) info popover is currently open
 
     driveClientId: '', driveClientIdDraft: '', driveApiKey: '', driveApiKeyDraft: '',
     driveAppId: '', driveAppIdDraft: '',
     driveFileId: '', driveFolderId: '', driveFolderName: '', driveLastBackupAt: null,
     driveBusy: false, driveMessage: '', driveToast: '',
-    driveRestoreConfirming: false,
 
     localFolderName: '', localLastSavedAt: null, localBusy: false, localMessage: '',
-    localNeedsReconnect: false, localRestoreConfirming: false,
+    localNeedsReconnect: false,
   };
 
   // ---------------------------------------------------------------- data store
@@ -437,6 +440,18 @@
   function uid() { return 'id_' + Math.random().toString(36).slice(2); }
   function alphaSort(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }
 
+  // A small "i" badge that reveals a popover of help text on click, instead
+  // of that text sitting permanently on the page. `html` is trusted markup
+  // (a hardcoded help string, occasionally with a link) — never user input.
+  function infoIcon(id, html) {
+    return `
+      <span class="info-icon-wrap">
+        <button type="button" class="info-icon-btn" data-action="toggleInfo" data-info-id="${id}" aria-label="More info">i</button>
+        ${state.openInfoId === id ? `<div class="info-popover">${html}</div>` : ''}
+      </span>
+    `;
+  }
+
   function equipmentById(id) { return state.equipment.find((e) => e.id === Number(id)) || null; }
   function equipmentByName(name) {
     const t = (name || '').trim().toLowerCase();
@@ -580,6 +595,9 @@
           ${state.storageMode !== 'none' ? `
           <button data-action="headerSaveNow" aria-label="Save now" title="${navSaveBusy() ? 'Saving…' : 'Save now'}" ${navSaveBusy() ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
+          </button>
+          <button data-action="confirmRestoreLatest" aria-label="Download latest" title="Download latest" ${navSaveBusy() ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           </button>` : ''}
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
@@ -1409,15 +1427,16 @@
   function renderDriveBackupSection() {
     const isError = /failed|expired|Add your|Could not/i.test(state.driveMessage || '');
     if (!state.driveClientId) {
+      const setupInfo = `One-time setup, done once per Google account: create an OAuth Client ID (Web
+        application) at <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
+        enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
+        <code>${esc(window.location.origin)}</code>. The app will only ever be able to see or edit the
+        one backup file it creates for itself, never the rest of your Drive.`;
       return `
         <div class="card" style="padding:16px 20px;">
-          <div class="card-title" style="margin-bottom:8px;">Google Drive</div>
-          <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;margin-bottom:14px;">
-            One-time setup, done once per Google account: create an OAuth Client ID (Web application) at
-            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">console.cloud.google.com/apis/credentials</a>,
-            enable the "Google Drive API" for that project, and under "Authorized JavaScript origins" add
-            <code>${esc(window.location.origin)}</code>. Then paste the Client ID below — it's stored only in this browser.
-            The app will only ever be able to see or edit the one backup file it creates for itself, never the rest of your Drive.
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            <div class="card-title">Google Drive</div>
+            ${infoIcon('drive-setup', setupInfo)}
           </div>
           ${driveSetupFields()}
           ${state.driveMessage ? `<div style="margin-top:10px;font-size:13px;color:${isError ? 'var(--color-accent-700)' : 'var(--color-neutral-700)'};">${esc(state.driveMessage)}</div>` : ''}
@@ -1425,32 +1444,34 @@
       `;
     }
     const canChooseFolder = state.driveApiKey && state.driveAppId;
+    const statusInfo = `This is where your data actually lives — every change auto-saves here every 15
+      seconds. Use the icons in the header to save or download the latest on demand.`;
+    const apiKeyInfo = `Needed only for "Choose folder…". Create an API key on the same credentials page,
+      enable "Picker API" in the Library, then under "API restrictions" allow both "Picker API" and
+      "Google Drive API".`;
+    const appIdInfo = `Your Cloud project's project number (not the project ID, not the Client ID) —
+      found on the Cloud Console dashboard. Needed alongside the API key for "Choose folder…" to work
+      reliably.`;
     return `
       <div class="card" style="padding:16px 20px;">
-        <div class="card-title" style="margin-bottom:8px;">Google Drive</div>
-        <div class="card-meta" style="margin-bottom:12px;">This is where your data actually lives — every change auto-saves here every 15 seconds, and the cloud icon in the header does the same thing on demand.</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+          <div class="card-title">Google Drive</div>
+          ${infoIcon('drive-status', statusInfo)}
+        </div>
         <div style="margin-bottom:8px;">Last saved to Drive: <strong>${state.driveLastBackupAt ? new Date(state.driveLastBackupAt).toLocaleString() : 'Never'}</strong></div>
         <div style="margin-bottom:12px;">Backup folder: <strong>${state.driveFolderName ? esc(state.driveFolderName) : 'My Drive (root)'}</strong></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" data-action="driveBackupNow" ${state.driveBusy ? 'disabled' : ''}>${state.driveBusy ? 'Working…' : 'Save to Google Drive now'}</button>
-          <button class="btn btn-secondary" data-action="confirmDriveRestoreClick" ${state.driveBusy ? 'disabled' : ''}>Load latest from Google Drive</button>
           <button class="btn btn-secondary" data-action="chooseDriveFolder" ${state.driveBusy || !canChooseFolder ? 'disabled' : ''} title="${canChooseFolder ? '' : 'Add a Google API key and project number below to enable this'}">Choose folder…</button>
           ${state.driveFolderId ? `<button class="btn btn-ghost" data-action="clearDriveFolder">Use My Drive root</button>` : ''}
         </div>
-        ${state.driveRestoreConfirming ? `
-          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="color:var(--color-accent-700);">This replaces everything currently loaded with what's saved in Google Drive. Any changes not yet saved will be lost.</div>
-            <button class="btn btn-primary" data-action="doDriveRestore">Yes, load from Drive</button>
-            <button class="btn btn-ghost" data-action="cancelDriveRestore">Cancel</button>
-          </div>
-        ` : ''}
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--color-divider);">
           <div class="field" style="flex:1;min-width:220px;">
-            <label>Google API key ${state.driveApiKey ? '(set)' : '(needed for "Choose folder…")'}</label>
+            <label style="display:flex;align-items:center;gap:6px;">Google API key ${state.driveApiKey ? '(set)' : ''} ${infoIcon('drive-apikey', apiKeyInfo)}</label>
             <input class="input" id="drive-api-key" data-action="setDriveApiKeyDraft" data-on="input" value="${attr(state.driveApiKeyDraft)}" placeholder="${state.driveApiKey ? '••••••••••••' : 'AIza…'}">
           </div>
           <div class="field" style="flex:1;min-width:220px;">
-            <label>Google Cloud project number ${state.driveAppId ? '(set)' : '(needed for "Choose folder…")'}</label>
+            <label style="display:flex;align-items:center;gap:6px;">Google Cloud project number ${state.driveAppId ? '(set)' : ''} ${infoIcon('drive-appid', appIdInfo)}</label>
             <input class="input" id="drive-app-id" data-action="setDriveAppIdDraft" data-on="input" value="${attr(state.driveAppIdDraft)}" placeholder="${state.driveAppId ? state.driveAppId : 'e.g. 123456789012'}">
           </div>
           <div><button class="btn btn-secondary" data-action="saveDriveApiKey" ${!state.driveApiKeyDraft.trim() && !state.driveAppIdDraft.trim() ? 'disabled' : ''}>Save</button></div>
@@ -1464,7 +1485,7 @@
     if (!LocalStore.supported()) {
       return `
         <div class="card" style="padding:16px 20px;">
-          <div class="card-title" style="margin-bottom:8px;">A folder on this computer</div>
+          <div class="card-title" style="margin-bottom:8px;">Local</div>
           <div style="color:var(--color-neutral-700);font-size:14px;line-height:1.5;">
             This browser doesn't support picking a local folder to save to — that needs Chrome or Edge on a
             computer. Try Google Drive instead, or open this app in a supported browser.
@@ -1472,25 +1493,22 @@
         </div>
       `;
     }
+    const statusInfo = `Saves one file (farm-fleet-expenses-backup.json) directly into a folder you
+      choose. Only works in this browser, on this device — nothing syncs anywhere else, and only
+      Chrome/Edge support it. Use the icons in the header to save or download the latest on demand.`;
     return `
       <div class="card" style="padding:16px 20px;">
-        <div class="card-title" style="margin-bottom:8px;">A folder on this computer</div>
-        <div class="card-meta" style="margin-bottom:12px;">Saves one file (farm-fleet-expenses-backup.json) directly into a folder you choose. Only works in this browser, on this device — nothing syncs anywhere else, and only Chrome/Edge support it.</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+          <div class="card-title">Local</div>
+          ${infoIcon('local-status', statusInfo)}
+        </div>
         <div style="margin-bottom:8px;">Folder: <strong>${state.localFolderName ? esc(state.localFolderName) : 'Not chosen yet'}</strong></div>
         <div style="margin-bottom:12px;">Last saved: <strong>${state.localLastSavedAt ? new Date(state.localLastSavedAt).toLocaleString() : 'Never'}</strong></div>
         ${state.localNeedsReconnect ? `<div style="margin-bottom:12px;padding:12px 16px;border:2px solid var(--color-accent);color:var(--color-accent-700);font-size:13px;">This browser needs you to reconnect to the folder before it can load or save — click "Choose folder…" and pick the same one again.</div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" data-action="chooseLocalFolder" ${state.localBusy ? 'disabled' : ''}>${state.localBusy ? 'Working…' : (state.localFolderName ? 'Choose a different folder…' : 'Choose folder…')}</button>
           ${state.localFolderName ? `<button class="btn btn-secondary" data-action="localSaveNow" ${state.localBusy ? 'disabled' : ''}>Save now</button>` : ''}
-          ${state.localFolderName ? `<button class="btn btn-secondary" data-action="confirmLocalRestoreClick" ${state.localBusy ? 'disabled' : ''}>Load latest from folder</button>` : ''}
         </div>
-        ${state.localRestoreConfirming ? `
-          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="color:var(--color-accent-700);">This replaces everything currently loaded with what's saved in that folder. Any changes not yet saved will be lost.</div>
-            <button class="btn btn-primary" data-action="doLocalRestore">Yes, load from folder</button>
-            <button class="btn btn-ghost" data-action="cancelLocalRestore">Cancel</button>
-          </div>
-        ` : ''}
         ${state.localMessage ? `<div style="margin-top:10px;font-size:13px;color:var(--color-neutral-700);">${esc(state.localMessage)}</div>` : ''}
       </div>
     `;
@@ -1502,13 +1520,28 @@
       { key: 'drive', label: 'Google Drive' },
       { key: 'local', label: 'Local' },
     ];
+    const locked = state.storageMode !== 'none' && !state.storageChangeConfirming;
+    const currentLabel = (modes.find((m) => m.key === state.storageMode) || modes[0]).label;
+    const modeInfo = `Whatever's selected is where changes save automatically every 15 seconds, and
+      where the app loads its data from every time it opens. Switching doesn't erase anything — it just
+      changes where future saves go, and it's locked once set so it doesn't get changed by accident.`;
     return `
       <div class="card" style="padding:16px 20px;margin-bottom:16px;">
-        <div class="card-title" style="margin-bottom:8px;">Where your data lives</div>
-        <div class="card-meta" style="margin-bottom:14px;">Pick one. Whatever's selected is where changes save automatically every 15 seconds, and where the app loads its data from each time you open it. Switching here doesn't erase anything — it just changes where future saves go.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${modes.map((m) => `<button class="btn ${state.storageMode === m.key ? 'btn-primary' : 'btn-ghost'}" data-action="setStorageMode" data-mode="${m.key}">${m.label}</button>`).join('')}
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+          <div class="card-title">Where your data lives</div>
+          ${infoIcon('storage-mode', modeInfo)}
         </div>
+        ${locked ? `
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div>Connected to: <strong>${esc(currentLabel)}</strong></div>
+            <button class="btn btn-ghost" data-action="startChangeStorage">Change storage location…</button>
+          </div>
+        ` : `
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${modes.map((m) => `<button class="btn ${state.storageMode === m.key ? 'btn-primary' : 'btn-ghost'}" data-action="setStorageMode" data-mode="${m.key}">${m.label}</button>`).join('')}
+            ${state.storageMode !== 'none' ? `<button class="btn btn-ghost" data-action="cancelChangeStorage">Cancel</button>` : ''}
+          </div>
+        `}
       </div>
       ${state.storageMode === 'drive' ? renderDriveBackupSection() : ''}
       ${state.storageMode === 'local' ? renderLocalFolderSection() : ''}
@@ -1745,6 +1778,15 @@
           <div class="dialog-actions"><button class="btn btn-ghost" data-action="settingsPasswordCancel">Cancel</button><button class="btn btn-primary" data-action="settingsPasswordSubmit">Unlock</button></div>
         </div></div>`;
     }
+    if (state.restoreConfirmOpen) {
+      const sourceLabel = state.storageMode === 'drive' ? 'Google Drive' : 'your local folder';
+      html += `
+        <div class="dialog-backdrop"><div class="dialog">
+          <div class="dialog-title">Download latest?</div>
+          <div class="dialog-body">This replaces everything currently loaded with what's saved in ${esc(sourceLabel)}. Any changes not yet saved will be lost.</div>
+          <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelRestoreLatest">Cancel</button><button class="btn btn-primary" data-action="doRestoreLatest">Yes, download latest</button></div>
+        </div></div>`;
+    }
     return html;
   }
 
@@ -1931,15 +1973,16 @@
       state.driveBusy = false;
       render();
     },
-    confirmDriveRestoreClick() { state.driveRestoreConfirming = true; render(); },
-    cancelDriveRestore() { state.driveRestoreConfirming = false; render(); },
-    doDriveRestore() {
-      state.driveRestoreConfirming = false;
-      performDriveRestore(state.driveFileId);
+    toggleInfo(e, d) {
+      state.openInfoId = state.openInfoId === d.infoId ? null : d.infoId;
+      render();
     },
 
+    startChangeStorage() { state.storageChangeConfirming = true; render(); },
+    cancelChangeStorage() { state.storageChangeConfirming = false; render(); },
     setStorageMode(e, d) {
       state.storageMode = d.mode;
+      state.storageChangeConfirming = false;
       state.driveMessage = '';
       state.localMessage = '';
       persistStorageMode();
@@ -1956,6 +1999,13 @@
     headerSaveNow() {
       if (state.storageMode === 'drive') Actions.driveBackupNow();
       else if (state.storageMode === 'local') Actions.localSaveNow();
+    },
+    confirmRestoreLatest() { state.restoreConfirmOpen = true; render(); },
+    cancelRestoreLatest() { state.restoreConfirmOpen = false; render(); },
+    doRestoreLatest() {
+      state.restoreConfirmOpen = false;
+      if (state.storageMode === 'drive') performDriveRestore(state.driveFileId);
+      else if (state.storageMode === 'local') Actions.doLocalRestore();
     },
     async chooseLocalFolder() {
       state.localBusy = true;
@@ -1997,10 +2047,7 @@
       state.localBusy = false;
       render();
     },
-    confirmLocalRestoreClick() { state.localRestoreConfirming = true; render(); },
-    cancelLocalRestore() { state.localRestoreConfirming = false; render(); },
     async doLocalRestore() {
-      state.localRestoreConfirming = false;
       state.localBusy = true;
       state.localMessage = '';
       render();
@@ -2334,6 +2381,13 @@
   // ---------------------------------------------------------------- event delegation
 
   function dispatch(e) {
+    // Close any open info popover on a click that isn't inside it or its
+    // icon — otherwise it just sits there, invisible-but-solid, blocking
+    // clicks on whatever's underneath until the same icon is clicked again.
+    if (e.type === 'click' && state.openInfoId && !e.target.closest('.info-icon-wrap')) {
+      state.openInfoId = null;
+      render();
+    }
     const el = e.target.closest('[data-action]');
     if (!el) return;
     const on = el.dataset.on || 'click';

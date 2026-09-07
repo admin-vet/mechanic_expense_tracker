@@ -89,17 +89,28 @@ Settings → Storage has three options — pick one:
   browser on *this* device — nothing syncs anywhere else.
 
 The moment Drive or Local is set up, the app checks that location for an existing backup
-and loads it in automatically if one's there — so pointing a fresh device at a Drive
-account or folder that already has data pulls that data in, rather than starting empty.
-If it's genuinely the first time that Drive account or folder has been used, the app
-saves whatever's currently loaded there instead, so the file exists from then on.
+and loads it in automatically — so pointing a fresh device at a Drive account or folder
+that already has data pulls that data in, rather than starting empty. If it's genuinely
+the first time that Drive account or folder has been used, the app saves whatever's
+currently loaded there instead, so the file exists from then on. The same automatic
+check-and-load happens every time the app is opened, not just the first time, so it's
+always showing what's actually in Drive/the folder rather than something stale.
 
-Whichever is picked, changes **auto-save every 15 seconds** whenever there's something
-new to save — the cloud icon in the header does the same thing on demand — and Settings
-→ Storage has a "Load latest" button to pull down whatever's newest there (useful after
-using a different device, or if something else changed the file). There's also a
-"Download a copy as JSON" button for a manual, point-in-time export — that's just an
-extra safety copy, not how the app actually persists anything.
+Once a storage location is picked, **Settings → Storage locks it in** — the mode buttons
+collapse into a "Connected to: <mode>" summary, so it can't be changed by an idle click.
+A "Change storage location…" button is still there if you deliberately want to switch.
+
+Two icons appear in the header once a location is set: a cloud/save icon that backs up
+right now, and a download icon that pulls the latest down (after confirming, since it
+replaces whatever's currently loaded). Those replace the old "Load latest" button that
+used to live in Settings. There's also a "Download a copy as JSON" button in Settings for
+a manual, point-in-time export — that's just an extra safety copy, not how the app
+actually persists anything.
+
+Longer explanations (Drive setup steps, API key/project-number details, what "locked"
+means) live behind small "i" info buttons next to the relevant heading, instead of
+sitting on the page permanently — click one to see it, click it again (or click
+elsewhere) to close it.
 
 ### Google Drive setup
 
