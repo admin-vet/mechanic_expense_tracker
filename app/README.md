@@ -214,13 +214,42 @@ same backup/restore as everything else, with nothing extra to configure. It show
 download link on that equipment's detail page and can be replaced or removed (via the
 trash icon) from the edit screen.
 
+## Hour / KM usage log and yearly comparison
+
+Each equipment's detail page has a dated "Reading date" field next to the current hour
+meter — set both and click **Log reading** to stamp that reading into the equipment's own
+history (upserting by date if you log the same day twice). The resulting table shows every
+logged reading with the change since the previous one, and any entry can be removed with
+its trash icon.
+
+Reports → **Usage (hrs)** turns those stamps into a year-by-year comparison: for the
+selected year, it shows how many hours/km each equipment put on, computed as the last
+reading at or before that year's end minus the last reading at or before the prior year's
+end. An equipment shows "Not enough data" until it has a reading old enough to bracket both
+sides of the year — nothing is ever estimated or interpolated between readings, so the
+finest granularity you get out of a comparison is exactly how often you actually log a
+reading (log monthly for monthly deltas, log once a year for yearly ones — the per-equipment
+table itself shows the delta between any two dates you did log).
+
 ## UI conventions
 
 Delete/remove actions that aren't the final step of a confirmation are a small trash-can
 icon button rather than a text button, matching the existing edit-pencil icon — text is
 kept only on the last button of a destructive confirm dialog (e.g. "Delete equipment") and
 on text-based dropdown menu items, where an icon would look inconsistent next to the rest
-of the menu.
+of the menu. A small eye icon replaces the old "View" buttons for the same reason.
+
+Deleting an equipment or a category always asks for confirmation in a popup dialog first —
+never immediately, and never as an inline expanding panel. Deleting a category that still
+has equipment in it moves that equipment to an "Other" category (created automatically if
+one doesn't already exist) rather than leaving it pointed at a category that no longer
+exists.
+
+## Header name
+
+Settings → General has a "Header name" field — rename the app's header (shown at the top
+of every page) to this farm or shop's own name. Leaving it blank falls back to the default
+"Veteran Equipment Expense".
 
 ## Support
 

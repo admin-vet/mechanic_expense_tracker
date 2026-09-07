@@ -6,6 +6,7 @@
   const blankStandaloneRow = () => ({ part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '' });
   const blankManualForm = () => ({ part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso() });
   const COLOR_SWATCHES = ['oklch(60% 0.19 0)', 'oklch(60% 0.19 29)', 'oklch(60% 0.19 55)', 'oklch(60% 0.19 80)', 'oklch(60% 0.19 110)', 'oklch(60% 0.19 140)', 'oklch(60% 0.19 165)', 'oklch(60% 0.19 200)', 'oklch(60% 0.19 230)', 'oklch(60% 0.19 260)', 'oklch(60% 0.19 290)', 'oklch(60% 0.19 320)', 'oklch(60% 0.19 345)', 'oklch(45% 0.03 0)'];
+  const DEFAULT_FARM_NAME = 'Veteran Equipment Expense';
 
   let state = {
     categories: [], suppliers: [], equipment: [], invoices: [],
@@ -25,10 +26,12 @@
     manageOpenFor: null,
     manualFormOpenFor: null, manualForm: null,
     confirmDeleteFor: null,
+    confirmDeleteCategoryFor: null,
 
     detailEquipmentId: null,
     noteText: '', noteDate: '',
     hourCalcOpen: false,
+    hourLogDate: '',
 
     editModalOpenFor: null, editModalDraft: null,
     addModalOpen: false, addModalDraft: null,
@@ -42,6 +45,7 @@
 
     settingsUnlocked: false, settingsPasswordModalOpen: false, settingsPasswordInput: '', settingsPasswordError: false,
     settingsPassword: '1234', changePasswordDraft: '',
+    farmName: '', farmNameDraft: '',
 
     settingsTab: 'general',
 
@@ -106,6 +110,7 @@
     state.equipment = Array.isArray(data.equipment) ? data.equipment : [];
     state.invoices = Array.isArray(data.invoices) ? data.invoices : [];
     state.settingsPassword = typeof data.settingsPassword === 'string' && data.settingsPassword ? data.settingsPassword : '1234';
+    state.farmName = typeof data.farmName === 'string' ? data.farmName : '';
     let maxId = 0;
     const scan = (v) => { if (v && typeof v.id === 'number' && v.id > maxId) maxId = v.id; };
     state.categories.forEach(scan);
@@ -115,6 +120,7 @@
       (e.filters || []).forEach(scan);
       (e.services || []).forEach(scan);
       (e.notes || []).forEach(scan);
+      (e.hourLogs || []).forEach(scan);
     });
     state.invoices.forEach((inv) => {
       scan(inv);
@@ -290,6 +296,26 @@
       }
       persistDB();
     },
+    deleteCategory(id) {
+      const cat = state.categories.find((c) => c.id === id);
+      if (!cat) return;
+      const affected = state.equipment.filter((e) => e.category === cat.name);
+      if (affected.length) {
+        // Equipment can't be left pointing at a category that no longer
+        // exists -- it would just silently vanish from every category-based
+        // view (tile counts, browsing, yearly-by-category totals) while
+        // still technically existing. Move it to "Other" instead, creating
+        // that category if this shop doesn't have one yet.
+        let fallback = state.categories.find((c) => c.name === 'Other' && c.id !== id);
+        if (!fallback) {
+          fallback = { id: nextId++, name: 'Other', color: COLOR_SWATCHES[COLOR_SWATCHES.length - 1] };
+          state.categories.push(fallback);
+        }
+        affected.forEach((e) => { e.category = fallback.name; });
+      }
+      state.categories = state.categories.filter((c) => c.id !== id);
+      persistDB();
+    },
 
     createSupplier(name) {
       const trimmed = (name || '').trim();
@@ -332,6 +358,7 @@
         services: (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' })),
         notes: [],
         manual: payload.manual || null,
+        hourLogs: [],
       });
       persistDB();
     },
@@ -373,6 +400,30 @@
       if (isNaN(cur)) throw new Error('Set the current hour meter first.');
       const sv = (eq.services || []).find((s) => s.id === serviceId);
       if (sv) sv.lastHours = String(cur);
+      persistDB();
+    },
+
+    // A dated hour/km-meter reading, kept alongside the plain "current
+    // reading" used for service status -- this is what lets Reports compute
+    // how much an equipment was actually used between any two dates, rather
+    // than only ever knowing the single latest number.
+    logHourReading(equipmentId, date, hours) {
+      const eq = state.equipment.find((e) => e.id === equipmentId);
+      if (!eq) return;
+      const h = parseFloat(hours);
+      if (isNaN(h)) throw new Error('Enter the current hour meter reading first.');
+      const d = (date || '').trim() || todayIso();
+      eq.hourLogs = eq.hourLogs || [];
+      const existing = eq.hourLogs.find((l) => l.date === d);
+      if (existing) existing.hours = String(h);
+      else eq.hourLogs.push({ id: nextId++, date: d, hours: String(h) });
+      eq.hourLogs.sort((a, b) => a.date.localeCompare(b.date));
+      persistDB();
+    },
+    removeHourLog(equipmentId, logId) {
+      const eq = state.equipment.find((e) => e.id === equipmentId);
+      if (!eq) return;
+      eq.hourLogs = (eq.hourLogs || []).filter((l) => l.id !== logId);
       persistDB();
     },
 
@@ -437,6 +488,7 @@
       equipment: state.equipment,
       invoices: state.invoices,
       settingsPassword: state.settingsPassword,
+      farmName: state.farmName,
     };
   }
   function fmt(n) { return '$' + (parseFloat(n) || 0).toFixed(2); }
@@ -453,6 +505,14 @@
   function trashButton(action, label, extraAttrs) {
     return `<button class="btn-icon" data-action="${action}" aria-label="${attr(label)}" title="${attr(label)}" ${extraAttrs || ''}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+    </button>`;
+  }
+
+  // An eye icon button, used in place of a text "View" button wherever it
+  // just navigates to a detail page.
+  function eyeButton(action, label, extraAttrs) {
+    return `<button class="btn-icon" data-action="${action}" aria-label="${attr(label)}" title="${attr(label)}" ${extraAttrs || ''}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
     </button>`;
   }
 
@@ -489,6 +549,7 @@
   function getYears() {
     const set = new Set([new Date().getFullYear()]);
     allLineItems().forEach((li) => { if (li.date) set.add(parseInt(li.date.slice(0, 4), 10)); });
+    state.equipment.forEach((eq) => (eq.hourLogs || []).forEach((l) => { if (l.date) set.add(parseInt(l.date.slice(0, 4), 10)); }));
     return Array.from(set).sort((a, b) => b - a);
   }
   function yearOptionsHtml(selected) {
@@ -607,7 +668,7 @@
     return `
       <div class="nav" style="justify-content:space-between;padding:20px 44px;min-height:96px;">
         <div style="display:flex;align-items:center;gap:16px;">
-          <div class="nav-brand">Veteran Equipment Expense</div>
+          <div class="nav-brand">${esc(state.farmName || DEFAULT_FARM_NAME)}</div>
           ${state.storageMode !== 'none' ? `
           <button data-action="headerSaveNow" aria-label="Save now" title="${navSaveBusy() ? 'Saving…' : 'Save now'}" ${navSaveBusy() ? 'disabled' : ''} style="padding:4px;background:none;border:none;color:var(--color-text);cursor:pointer;display:flex;align-items:center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
@@ -923,7 +984,6 @@
     const total = equipmentTotal(eq);
     const count = equipmentCount(eq);
     const manageOpen = state.manageOpenFor === eq.id;
-    const confirming = state.confirmDeleteFor === eq.id;
     const formOpen = state.manualFormOpenFor === eq.id;
     const dots = serviceDotsFor(eq);
     return `
@@ -938,7 +998,7 @@
             ${dots.map((d) => `<span title="${attr(d.name)}" style="width:10px;height:10px;background:${d.color};display:inline-block;"></span>`).join('')}
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative;">
-            <button class="btn btn-secondary" data-action="viewEquipment" data-id="${eq.id}">View</button>
+            ${eyeButton('viewEquipment', 'View equipment', `data-id="${eq.id}"`)}
             <button class="btn btn-ghost" data-action="toggleManage" data-id="${eq.id}">Manage</button>
             ${manageOpen ? `
               <div style="position:absolute;top:100%;right:0;margin-top:4px;background:var(--color-bg);border:2px solid var(--color-divider);z-index:5;min-width:200px;display:flex;flex-direction:column;">
@@ -948,12 +1008,6 @@
               </div>` : ''}
           </div>
         </div>
-        ${confirming ? `
-          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="color:var(--color-accent-700);">Delete ${esc(eq.name)} and its ${count}${count === 1 ? ' expense' : ' expenses'}? This can't be undone.</div>
-            <button class="btn btn-primary" data-action="deleteEquipment" data-id="${eq.id}">Delete equipment</button>
-            <button class="btn btn-ghost" data-action="cancelDeleteEquipment">Cancel</button>
-          </div>` : ''}
         ${formOpen ? renderInlineManualForm(eq) : ''}
       </div>
     `;
@@ -1158,11 +1212,14 @@
         ${eq.manual ? `<div class="card-meta" style="margin-bottom:4px;">Manual: <a href="${eq.manual.dataUrl}" target="_blank" rel="noopener" download="${attr(eq.manual.fileName)}">${esc(eq.manual.fileName)}</a></div>` : ''}
         ${eq.info ? `<div class="card-meta" style="margin-bottom:24px;">${esc(eq.info)}</div>` : ''}
 
-        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px;gap:16px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px;gap:16px;flex-wrap:wrap;">
           <div class="card-title">Service Status</div>
-          <div style="display:flex;align-items:center;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <label style="font-size:13px;color:var(--color-neutral-700);">Current hour meter</label>
             <input class="input" id="cur-hours" data-action="setCurrentHours" data-on="change" style="width:130px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourEnd)}">
+            <label style="font-size:13px;color:var(--color-neutral-700);">Reading date</label>
+            <input class="input" id="hour-log-date" data-action="setHourLogDate" data-on="change" style="width:150px;" type="date" value="${attr(state.hourLogDate || todayIso())}">
+            <button class="btn btn-secondary" data-action="logHourReading" data-id="${eq.id}">Log reading</button>
           </div>
         </div>
         <div class="card" style="padding:20px;margin-bottom:36px;">
@@ -1189,6 +1246,25 @@
             </div>
           ` : `<div class="card-meta">No service intervals set. Use the edit button above to add engine oil, hydraulic oil, gearbox and any other interval.</div>`}
         </div>
+
+        <div class="card-title" style="margin-bottom:12px;">Hour / KM Log</div>
+        ${(eq.hourLogs || []).length ? `
+          <table class="table" style="margin-bottom:36px;">
+            <thead><tr><th>Date</th><th>Reading</th><th>Change since last</th><th></th></tr></thead>
+            <tbody>
+              ${[...(eq.hourLogs || [])].sort((a, b) => b.date.localeCompare(a.date)).map((log, i, sortedDesc) => {
+                const next = sortedDesc[i + 1];
+                const delta = next ? parseFloat(log.hours) - parseFloat(next.hours) : null;
+                return `<tr>
+                  <td>${esc(log.date)}</td>
+                  <td>${esc(log.hours)}</td>
+                  <td>${delta !== null ? Math.round(delta * 10) / 10 + ' hrs' : '—'}</td>
+                  <td>${trashButton('removeHourLog', 'Remove reading', `data-eq="${eq.id}" data-id="${log.id}"`)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        ` : `<div class="text-muted" style="margin-bottom:36px;">No dated readings logged yet. Set the current hour meter and reading date above, then click "Log reading" to start tracking usage over time.</div>`}
 
         ${(eq.filters || []).length ? `
           <div class="card-title" style="margin-bottom:12px;">Filters</div>
@@ -1256,10 +1332,104 @@
 
   // ---------------------------------------------------------------- yearly totals
 
+  // The last logged reading on or before a given date -- eq.hourLogs is kept
+  // sorted ascending by date (Store.logHourReading re-sorts on every write),
+  // so the last matching entry scanning backward is the most recent one at
+  // or before that point in time.
+  function hourLogValueAtOrBefore(eq, isoDate) {
+    const logs = eq.hourLogs || [];
+    for (let i = logs.length - 1; i >= 0; i--) {
+      if (logs[i].date <= isoDate) return parseFloat(logs[i].hours);
+    }
+    return null;
+  }
+  // Hours/km put on during `year` = the last reading at or before that
+  // year's end, minus the last reading at or before the prior year's end.
+  // Returns null (rather than guessing a start of 0) when there's no logged
+  // reading old enough to bracket the start of the year -- a machine with
+  // thousands of hours already on it can't be assumed to have started at 0.
+  function equipmentYearUsage(eq, year) {
+    const end = hourLogValueAtOrBefore(eq, `${year}-12-31`);
+    const start = hourLogValueAtOrBefore(eq, `${year - 1}-12-31`);
+    if (end === null || start === null) return null;
+    return Math.max(0, end - start);
+  }
+
+  function renderYearlyUsage(selectedYear, years) {
+    const term = state.yearlySearch.trim().toLowerCase();
+    let source = state.equipment.map((eq) => ({
+      eqId: eq.id, name: eq.name, category: eq.category, make: eq.make, model: eq.model,
+      usage: equipmentYearUsage(eq, selectedYear),
+    }));
+    if (term) source = source.filter((r) => r.name.toLowerCase().includes(term) || (r.make || '').toLowerCase().includes(term) || (r.model || '').toLowerCase().includes(term));
+
+    const sortMode = state.yearlySortMode;
+    const known = source.filter((r) => r.usage !== null);
+    const unknown = source.filter((r) => r.usage === null);
+    let sortedKnown;
+    if (sortMode === 'alpha') sortedKnown = [...known].sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortMode === 'least') sortedKnown = [...known].sort((a, b) => a.usage - b.usage);
+    else if (sortMode === 'category') sortedKnown = [...known].sort((a, b) => a.category.localeCompare(b.category) || b.usage - a.usage);
+    else sortedKnown = [...known].sort((a, b) => b.usage - a.usage);
+    const sorted = [...sortedKnown, ...unknown.sort((a, b) => a.name.localeCompare(b.name))];
+
+    const maxVal = Math.max(1, ...known.map((r) => r.usage));
+    const grandTotal = known.reduce((s, r) => s + r.usage, 0);
+
+    return `
+      <input class="input" id="yearly-search" data-action="setYearlySearch" data-on="input" style="width:100%;margin-bottom:20px;" placeholder="Search by name, make, or model…" value="${attr(state.yearlySearch)}">
+      <div class="field" style="max-width:280px;margin-bottom:20px;">
+        <label>Sort by</label>
+        <select class="input" id="yearly-sort" data-action="setYearlySort" data-on="change">
+          <option value="most" ${sortMode === 'most' ? 'selected' : ''}>Most hours</option>
+          <option value="least" ${sortMode === 'least' ? 'selected' : ''}>Least hours</option>
+          <option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetical</option>
+          <option value="category" ${sortMode === 'category' ? 'selected' : ''}>Category</option>
+        </select>
+      </div>
+      <div class="card-meta" style="margin-bottom:16px;">Hours/km put on during ${selectedYear} for each equipment, based on the dated readings logged on its detail page. An equipment needs a reading at or before the start of ${selectedYear} <em>and</em> one at or before its end to show a number here — log readings regularly (at minimum once a year) to keep this filled in.</div>
+      <table class="table">
+        <thead><tr><th>Equipment</th><th>Category</th><th style="width:30%;">Usage</th><th style="text-align:right;">Hours in ${selectedYear}</th><th></th></tr></thead>
+        <tbody>
+          ${sorted.map((r) => {
+            const eq = equipmentById(r.eqId);
+            return `<tr>
+              <td>${esc(r.name)}</td>
+              <td>${esc(r.category)}</td>
+              <td>${r.usage !== null ? `<div style="background:var(--color-neutral-100);height:16px;"><div style="background:${categoryColor(r.category)};height:16px;width:${Math.round((r.usage / maxVal) * 100)}%;"></div></div>` : ''}</td>
+              <td style="text-align:right;font-family:var(--font-heading);">${r.usage !== null ? Math.round(r.usage).toLocaleString() + ' hrs' : '<span class="card-meta">Not enough data</span>'}</td>
+              <td>${eq ? eyeButton('viewEquipment', 'View equipment', `data-id="${eq.id}"`) : ''}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot><tr><td style="font-family:var(--font-heading);">Total</td><td></td><td></td><td style="text-align:right;font-family:var(--font-heading);">${Math.round(grandTotal).toLocaleString()} hrs</td><td></td></tr></tfoot>
+      </table>
+    `;
+  }
+
   function renderYearly() {
     const years = getYears();
     const selectedYear = state.year || years[0];
     const mode = state.yearlyGroupMode;
+
+    if (mode === 'usage') {
+      return `
+        <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;">
+            <h1 style="font-size:28px;margin:0;">Yearly Totals</h1>
+            <select class="input" style="width:110px;" data-action="setYearlySelectedYear" data-on="change">${yearOptionsHtml(selectedYear)}</select>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn ${mode === 'category' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="category">Categories</button>
+            <button class="btn ${mode === 'equipment' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="equipment">Equipment</button>
+            <button class="btn ${mode === 'vendor' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="vendor">Vendors</button>
+            <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage (hrs)</button>
+          </div>
+          ${renderYearlyUsage(selectedYear, years)}
+        </div>
+      `;
+    }
+
     const inYear = allLineItems().filter((li) => li.date && li.date.slice(0, 4) === String(selectedYear));
 
     let source;
@@ -1300,10 +1470,11 @@
           <h1 style="font-size:28px;margin:0;">Yearly Totals</h1>
           <select class="input" style="width:110px;" data-action="setYearlySelectedYear" data-on="change">${yearOptionsHtml(selectedYear)}</select>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
           <button class="btn ${mode === 'category' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="category">Categories</button>
           <button class="btn ${mode === 'equipment' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="equipment">Equipment</button>
           <button class="btn ${mode === 'vendor' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="vendor">Vendors</button>
+          <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage (hrs)</button>
         </div>
         <input class="input" id="yearly-search" data-action="setYearlySearch" data-on="input" style="width:100%;margin-bottom:20px;" placeholder="${placeholder}" value="${attr(state.yearlySearch)}">
         <div class="field" style="max-width:280px;margin-bottom:20px;">
@@ -1329,7 +1500,7 @@
                 ${mode === 'equipment' ? `<td>${esc(r.category)}</td>` : ''}
                 <td><div style="background:var(--color-neutral-100);height:16px;"><div style="background:${barColor};height:16px;width:${Math.round((r.total / maxVal) * 100)}%;"></div></div></td>
                 <td style="text-align:right;font-family:var(--font-heading);">${fmt(r.total)}</td>
-                ${mode === 'equipment' ? `<td>${eq ? `<button class="btn btn-secondary" data-action="viewEquipment" data-id="${eq.id}">View</button>` : ''}</td>` : ''}
+                ${mode === 'equipment' ? `<td>${eq ? eyeButton('viewEquipment', 'View equipment', `data-id="${eq.id}"`) : ''}</td>` : ''}
               </tr>`;
             }).join('')}
           </tbody>
@@ -1642,6 +1813,7 @@
             <button class="btn-icon" data-action="openCategoryEditModal" data-id="${cat.id}" aria-label="Edit category">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>
             </button>
+            ${trashButton('confirmDeleteCategory', 'Delete category', `data-id="${cat.id}"`)}
           </div>
         `).join('')}
       </div>
@@ -1657,12 +1829,6 @@
           </button>
           ${trashButton('confirmDeleteEquipment', 'Delete equipment', `data-id="${eq.id}"`)}
         </div>
-        ${state.confirmDeleteFor === eq.id ? `
-          <div style="margin-top:12px;padding:16px;border:2px solid var(--color-accent);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="color:var(--color-accent-700);">Delete ${esc(eq.name)} and all its recorded expenses? This can't be undone.</div>
-            <button class="btn btn-primary" data-action="deleteEquipment" data-id="${eq.id}">Delete equipment</button>
-            <button class="btn btn-ghost" data-action="cancelDeleteEquipment">Cancel</button>
-          </div>` : ''}
       </div>
     `).join('');
     const supBody = state.suppliers.map((sup) => `
@@ -1694,6 +1860,14 @@
     let body;
     if (tab === 'general') {
       body = `
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-title">Header name</div>
+          <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Shown at the top of every page — rename it to this farm/shop's name.</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="flex:1;max-width:280px;"><label>Name</label><input class="input" id="farm-name-draft" data-action="setFarmNameDraft" data-on="input" placeholder="${attr(DEFAULT_FARM_NAME)}" value="${attr(state.farmNameDraft)}"></div>
+            <button class="btn btn-secondary" data-action="saveFarmName">Save name</button>
+          </div>
+        </div>
         <div class="card" style="margin-bottom:24px;">
           <div class="card-title">Settings password</div>
           <div class="card-body" style="margin:8px 0 16px;color:var(--color-neutral-700);">Anyone who knows this password can open Settings. Change it here — it's stored only in this browser.</div>
@@ -1853,6 +2027,30 @@
     if (state.categoryEditModalOpenFor) {
       html += renderCategoryModal('categoryEdit', { name: state.categoryEditDraft, color: state.categoryEditColorDraft }, 'Rename category', 'saveCategoryEdit', 'Save', !state.categoryEditDraft.trim());
     }
+    if (state.confirmDeleteFor) {
+      const eq = equipmentById(state.confirmDeleteFor);
+      if (eq) {
+        const count = equipmentCount(eq);
+        html += `
+          <div class="dialog-backdrop"><div class="dialog">
+            <div class="dialog-title">Delete this equipment?</div>
+            <div class="dialog-body">Delete ${esc(eq.name)} and its ${count}${count === 1 ? ' expense' : ' expenses'}? This can't be undone.</div>
+            <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelDeleteEquipment">Cancel</button><button class="btn btn-primary" data-action="deleteEquipment" data-id="${eq.id}">Delete equipment</button></div>
+          </div></div>`;
+      }
+    }
+    if (state.confirmDeleteCategoryFor) {
+      const cat = state.categories.find((c) => c.id === state.confirmDeleteCategoryFor);
+      if (cat) {
+        const affected = state.equipment.filter((e) => e.category === cat.name).length;
+        html += `
+          <div class="dialog-backdrop"><div class="dialog">
+            <div class="dialog-title">Delete this category?</div>
+            <div class="dialog-body">Delete "${esc(cat.name)}"?${affected ? ` The ${affected} piece${affected === 1 ? '' : 's'} of equipment in it will be moved to "Other".` : ''}</div>
+            <div class="dialog-actions"><button class="btn btn-ghost" data-action="cancelDeleteCategory">Cancel</button><button class="btn btn-primary" data-action="deleteCategory" data-id="${cat.id}">Delete category</button></div>
+          </div></div>`;
+      }
+    }
     if (state.supplierAddModalOpen) {
       html += `
         <div class="dialog-backdrop"><div class="dialog">
@@ -1992,7 +2190,7 @@
       render();
     },
     settingsClick() {
-      if (state.settingsUnlocked) { state.view = 'settings'; render(); return; }
+      if (state.settingsUnlocked) { state.view = 'settings'; state.farmNameDraft = state.farmName; render(); return; }
       state.settingsPasswordModalOpen = true;
       state.settingsPasswordInput = '';
       state.settingsPasswordError = false;
@@ -2005,6 +2203,7 @@
         state.settingsUnlocked = true;
         state.settingsPasswordModalOpen = false;
         state.view = 'settings';
+        state.farmNameDraft = state.farmName;
       } else {
         state.settingsPasswordError = true;
       }
@@ -2016,6 +2215,12 @@
         Store.changeSettingsPassword(state.changePasswordDraft);
         state.changePasswordDraft = '';
       });
+    },
+    setFarmNameDraft(e) { state.farmNameDraft = e.target.value; render(); },
+    saveFarmName() {
+      state.farmName = state.farmNameDraft.trim();
+      persistDB();
+      render();
     },
     backupNow() {
       try {
@@ -2412,7 +2617,7 @@
     setEquipmentListMode(e, d) { state.equipmentListMode = d.mode; render(); },
     selectCategory(e, d) { state.selectedCategory = d.name; render(); },
     backToCategories() { state.selectedCategory = null; render(); },
-    viewEquipment(e, d) { state.view = 'detail'; state.detailEquipmentId = Number(d.id); state.noteText = ''; state.noteDate = ''; state.hourCalcOpen = false; render(); },
+    viewEquipment(e, d) { state.view = 'detail'; state.detailEquipmentId = Number(d.id); state.noteText = ''; state.noteDate = ''; state.hourCalcOpen = false; state.hourLogDate = todayIso(); render(); },
     backToHistory() { state.view = 'history'; render(); },
     toggleManage(e, d) { const id = Number(d.id); state.manageOpenFor = state.manageOpenFor === id ? null : id; render(); },
     openManualForm(e, d) { state.manualFormOpenFor = Number(d.id); state.manualForm = blankManualForm(); state.manageOpenFor = null; render(); },
@@ -2449,6 +2654,15 @@
 
     openHourCalc() { state.hourCalcOpen = true; render(); },
     closeHourCalc() { state.hourCalcOpen = false; render(); },
+    setHourLogDate(e) { state.hourLogDate = e.target.value; render(); },
+    logHourReading(e, d) {
+      const eq = equipmentById(d.id);
+      if (!eq) return;
+      mutate(() => Store.logHourReading(eq.id, state.hourLogDate, eq.hourEnd));
+    },
+    removeHourLog(e, d) {
+      mutate(() => Store.removeHourLog(Number(d.eq), Number(d.id)));
+    },
     setHourStart(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { start: e.target.value })); },
     setHourEnd(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
     setCurrentHours(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
@@ -2528,6 +2742,17 @@
         Store.updateCategory(id, { name, color: state.categoryEditColorDraft });
         if (state.selectedCategory === oldName) state.selectedCategory = name;
         state.categoryEditModalOpenFor = null;
+      });
+    },
+    confirmDeleteCategory(e, d) { state.confirmDeleteCategoryFor = Number(d.id); render(); },
+    cancelDeleteCategory() { state.confirmDeleteCategoryFor = null; render(); },
+    deleteCategory(e, d) {
+      const id = Number(d.id);
+      const cat = state.categories.find((c) => c.id === id);
+      mutate(() => {
+        Store.deleteCategory(id);
+        state.confirmDeleteCategoryFor = null;
+        if (cat && state.selectedCategory === cat.name) state.selectedCategory = null;
       });
     },
 
