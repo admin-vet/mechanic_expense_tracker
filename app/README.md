@@ -216,20 +216,51 @@ trash icon) from the edit screen.
 
 ## Hour / KM usage log and yearly comparison
 
-Each equipment's detail page has a dated "Reading date" field next to the current hour
-meter — set both and click **Log reading** to stamp that reading into the equipment's own
+Each equipment has a **"Tracked by"** setting (Hour meter or Kilometers, on its edit
+screen) — trucks and cars are usually tracked by odometer, most farm equipment by an hour
+meter. Every label that depends on this (the reading field, the log table, Maintenance,
+Reports) follows whichever unit that equipment uses.
+
+Each equipment's detail page has a dated "Reading date" field next to the current
+reading — set both and click **Log reading** to stamp that reading into the equipment's own
 history (upserting by date if you log the same day twice). The resulting table shows every
 logged reading with the change since the previous one, and any entry can be removed with
-its trash icon.
+its trash icon. The **Maintenance** page also has a "Log a reading" section at the top that
+does the same thing for any equipment by name, so a reading can be recorded without opening
+that equipment's own page first.
 
-Reports → **Usage (hrs)** turns those stamps into a year-by-year comparison: for the
-selected year, it shows how many hours/km each equipment put on, computed as the last
-reading at or before that year's end minus the last reading at or before the prior year's
-end. An equipment shows "Not enough data" until it has a reading old enough to bracket both
-sides of the year — nothing is ever estimated or interpolated between readings, so the
-finest granularity you get out of a comparison is exactly how often you actually log a
-reading (log monthly for monthly deltas, log once a year for yearly ones — the per-equipment
-table itself shows the delta between any two dates you did log).
+Reports → **Usage** turns those stamps into a year-by-year comparison: for the
+selected year, it shows how much each equipment was used, computed as the last reading at
+or before that year's end minus the last reading at or before the prior year's end (in
+whichever unit that equipment uses). An equipment shows "Not enough data" until it has a
+reading old enough to bracket both sides of the year — nothing is ever estimated or
+interpolated between readings, so the finest granularity you get out of a comparison is
+exactly how often you actually log a reading (log monthly for monthly deltas, log once a
+year for yearly ones — the per-equipment table itself shows the delta between any two dates
+you did log).
+
+## Per-equipment report
+
+The graph icon next to an equipment's edit and calculator icons (on its detail page) opens
+a report scoped to just that one machine: total spend, cost per hour or per kilometer
+(lifetime spend divided by the total logged usage — needs at least two dated readings),
+cost per liter of fuel, spend by year, and spend by vendor. Cost-per-liter comes from the
+optional "Fuel liters" field on an expense line (see below) — it's the total cost of every
+expense with liters entered, divided by the total liters, so it only reflects purchases
+actually tagged as fuel rather than guessing from a part description.
+
+## Part numbers and fuel liters on expenses
+
+Every place an expense line gets entered — the Upload Invoice review table, Manual Expense
+rows, and the quick "+ Add Expense" form on an equipment card — now has a **Part #** field
+alongside the part description, and the Upload/Manual forms also have an optional **Fuel
+liters** field for tracking fuel purchases specifically. Both show up everywhere expense
+lines are listed: All Expenses, and an equipment's own Invoice history. Invoice OCR/PDF
+extraction doesn't fill in either field (there's no reliable way to read a part number or
+liters off a scanned receipt) — they're always typed in by hand.
+
+An equipment's **Invoice history** is collapsed by default (a "Show (N)" button reveals
+it) so a machine with a long expense history doesn't dominate its own detail page.
 
 ## UI conventions
 

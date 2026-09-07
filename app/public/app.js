@@ -3,8 +3,8 @@
 
   const $app = document.getElementById('app');
 
-  const blankStandaloneRow = () => ({ part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '' });
-  const blankManualForm = () => ({ part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso() });
+  const blankStandaloneRow = () => ({ part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '', liters: '' });
+  const blankManualForm = () => ({ part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso() });
   const COLOR_SWATCHES = ['oklch(60% 0.19 0)', 'oklch(60% 0.19 29)', 'oklch(60% 0.19 55)', 'oklch(60% 0.19 80)', 'oklch(60% 0.19 110)', 'oklch(60% 0.19 140)', 'oklch(60% 0.19 165)', 'oklch(60% 0.19 200)', 'oklch(60% 0.19 230)', 'oklch(60% 0.19 260)', 'oklch(60% 0.19 290)', 'oklch(60% 0.19 320)', 'oklch(60% 0.19 345)', 'oklch(45% 0.03 0)'];
   const DEFAULT_FARM_NAME = 'Veteran Equipment Expense';
 
@@ -32,6 +32,8 @@
     noteText: '', noteDate: '',
     hourCalcOpen: false,
     hourLogDate: '',
+    invoiceHistoryOpen: false,
+    maintLogEquipmentId: null, maintLogReading: '', maintLogDate: '',
 
     editModalOpenFor: null, editModalDraft: null,
     addModalOpen: false, addModalDraft: null,
@@ -352,6 +354,7 @@
         model: payload.model || '',
         vin: payload.vin || '',
         info: payload.info || '',
+        meterUnit: payload.meterUnit === 'km' ? 'km' : 'hours',
         hourStart: '',
         hourEnd: '',
         filters: (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: nextId++, type: f.type || '', partNumber: f.partNumber || '' })),
@@ -374,6 +377,7 @@
       eq.model = payload.model || '';
       eq.vin = payload.vin || '';
       eq.info = payload.info || '';
+      eq.meterUnit = payload.meterUnit === 'km' ? 'km' : 'hours';
       eq.filters = (payload.filters || []).filter((f) => (f.type || '').trim() || (f.partNumber || '').trim()).map((f) => ({ id: f.id || nextId++, type: f.type || '', partNumber: f.partNumber || '' }));
       eq.services = (payload.services || []).filter((s) => (s.name || '').trim()).map((s) => ({ id: s.id || nextId++, name: s.name, interval: s.interval || '', lastHours: s.lastHours || '' }));
       eq.manual = payload.manual || null;
@@ -451,12 +455,14 @@
         lineItems: items.map((it) => ({
           id: nextId++,
           part: it.part || '',
+          partNumber: it.partNumber || '',
           qty: it.qty || '',
           unitCost: it.unitCost || '',
           totalCost: it.totalCost || '',
           vendor: it.vendor || '',
           date: it.date || '',
           equipmentId: it.equipmentId,
+          liters: it.liters || '',
         })),
       });
       persistDB();
@@ -538,6 +544,11 @@
     const c = state.categories.find((c) => c.name === name);
     return c ? c.color : 'var(--color-neutral-500)';
   }
+  // Equipment is tracked either by hour meter (default -- most farm
+  // equipment) or by odometer/kilometers (trucks, cars). Everything that
+  // displays a reading, an interval, or a rate needs to say the right unit.
+  function unitAbbr(eq) { return (eq && eq.meterUnit === 'km') ? 'km' : 'hrs'; }
+  function unitNoun(eq) { return (eq && eq.meterUnit === 'km') ? 'kilometers' : 'hours'; }
   function allLineItems() {
     const out = [];
     state.invoices.forEach((inv) => inv.lineItems.forEach((li) => {
@@ -701,6 +712,7 @@
       case 'maintenance': return renderMaintenance();
       case 'history': return renderEquipmentList();
       case 'detail': return renderEquipmentDetail();
+      case 'equipmentReport': return renderEquipmentReport();
       case 'yearly': return renderYearly();
       case 'analytics': return renderAnalytics();
       case 'settings': return state.settingsUnlocked ? renderSettings() : renderDashboard();
@@ -846,7 +858,7 @@
   function renderAllExpenses() {
     const term = state.allExpSearch.trim().toLowerCase();
     const lines = allLineItems();
-    const filtered = term ? lines.filter((li) => [li.part, li.vendor, li.equipment, li.date].some((v) => (v || '').toLowerCase().includes(term))) : lines;
+    const filtered = term ? lines.filter((li) => [li.part, li.partNumber, li.vendor, li.equipment, li.date].some((v) => (v || '').toLowerCase().includes(term))) : lines;
     const amt = (li) => parseFloat(li.totalCost) || 0;
     const sort = state.allExpSort;
     const sorted = [...filtered].sort((a, b) => {
@@ -872,9 +884,9 @@
         <div style="padding-bottom:8px;color:var(--color-neutral-700);font-size:13px;">${sorted.length}${sorted.length === 1 ? ' expense' : ' expenses'} · ${fmt(total)}</div>
       </div>
       <table class="table">
-        <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Equipment</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
+        <thead><tr><th>Date</th><th>Part</th><th>Part&nbsp;#</th><th>Vendor</th><th>Equipment</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr></thead>
         <tbody>
-          ${sorted.map((li) => `<tr><td style="white-space:nowrap;">${esc(li.date || '—')}</td><td>${esc(li.part || '—')}</td><td>${esc(li.vendor || '—')}</td><td>${esc(li.equipment || 'Unassigned')}</td><td style="text-align:right;">${esc(li.qty || '')}</td><td style="text-align:right;font-family:var(--font-heading);">${fmt(li.totalCost)}</td></tr>`).join('')}
+          ${sorted.map((li) => `<tr><td style="white-space:nowrap;">${esc(li.date || '—')}</td><td>${esc(li.part || '—')}</td><td>${esc(li.partNumber || '—')}</td><td>${esc(li.vendor || '—')}</td><td>${esc(li.equipment || 'Unassigned')}</td><td style="text-align:right;">${esc(li.qty || '')}</td><td style="text-align:right;font-family:var(--font-heading);">${fmt(li.totalCost)}</td></tr>`).join('')}
         </tbody>
       </table>
       ${sorted.length === 0 ? `<div class="text-muted" style="margin-top:16px;">${lines.length === 0 ? 'No expenses logged yet.' : 'No expenses match that search.'}</div>` : ''}
@@ -896,7 +908,8 @@
       <div style="display:flex;flex-direction:column;gap:12px;padding:20px;border:2px solid var(--color-divider);max-width:1200px;">
         ${rows.map((row, i) => `
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-bottom:12px;border-bottom:1px solid var(--color-divider);">
-            <div class="field" style="flex:2;min-width:320px;"><label>Part</label><input class="input" id="row-${i}-part" data-action="updateStandaloneRow" data-index="${i}" data-field="part" data-on="input" style="width:100%;" value="${attr(row.part)}"></div>
+            <div class="field" style="flex:2;min-width:240px;"><label>Part</label><input class="input" id="row-${i}-part" data-action="updateStandaloneRow" data-index="${i}" data-field="part" data-on="input" style="width:100%;" value="${attr(row.part)}"></div>
+            <div class="field" style="flex:1;min-width:140px;"><label>Part&nbsp;#</label><input class="input" id="row-${i}-partNumber" data-action="updateStandaloneRow" data-index="${i}" data-field="partNumber" data-on="input" style="width:100%;" value="${attr(row.partNumber)}"></div>
             <div class="field"><label>Qty</label><input class="input" id="row-${i}-qty" data-action="updateStandaloneRow" data-index="${i}" data-field="qty" data-on="input" style="width:70px" type="number" value="${attr(row.qty)}"></div>
             <div class="field"><label>Unit&nbsp;Cost</label><input class="input" id="row-${i}-unitCost" data-action="updateStandaloneRow" data-index="${i}" data-field="unitCost" data-on="input" style="width:100px" type="number" value="${attr(row.unitCost)}"></div>
             <div class="field"><label>Total&nbsp;Cost</label><input class="input" id="row-${i}-totalCost" data-action="updateStandaloneRow" data-index="${i}" data-field="totalCost" data-on="input" style="width:100px" type="number" value="${attr(row.totalCost)}"></div>
@@ -912,6 +925,7 @@
               <label>Equipment</label>
               <input class="input" id="row-${i}-equipment" data-action="updateStandaloneRow" data-index="${i}" data-field="equipment" data-on="input" style="width:100%;" list="equipmentDatalist" placeholder="Start typing…" value="${attr(row.equipment)}">
             </div>
+            <div class="field"><label>Fuel&nbsp;liters</label><input class="input" id="row-${i}-liters" data-action="updateStandaloneRow" data-index="${i}" data-field="liters" data-on="input" style="width:100px" type="number" step="0.01" placeholder="optional" value="${attr(row.liters)}"></div>
             ${rows.length > 1 ? trashButton('removeStandaloneRow', 'Remove row', `data-index="${i}"`) : ''}
           </div>
         `).join('')}
@@ -952,17 +966,19 @@
         ${p.error ? `<div style="border:2px solid var(--color-accent);padding:12px;margin-bottom:16px;color:var(--color-accent-700);">${esc(p.error)}</div>` : ''}
         ${rows.length ? `
           <table class="table">
-            <thead><tr><th>Part</th><th>Qty</th><th>Unit&nbsp;Cost</th><th>Total&nbsp;Cost</th><th>Vendor</th><th>Date</th><th>Equipment</th><th></th></tr></thead>
+            <thead><tr><th>Part</th><th>Part&nbsp;#</th><th>Qty</th><th>Unit&nbsp;Cost</th><th>Total&nbsp;Cost</th><th>Vendor</th><th>Date</th><th>Equipment</th><th>Fuel&nbsp;liters</th><th></th></tr></thead>
             <tbody>
               ${rows.map((item) => `
                 <tr>
-                  <td><input class="input" id="pend-${item.id}-part" data-action="updatePendingItem" data-id="${item.id}" data-field="part" data-on="input" style="width:240px" value="${attr(item.part)}"></td>
+                  <td><input class="input" id="pend-${item.id}-part" data-action="updatePendingItem" data-id="${item.id}" data-field="part" data-on="input" style="width:200px" value="${attr(item.part)}"></td>
+                  <td><input class="input" id="pend-${item.id}-partNumber" data-action="updatePendingItem" data-id="${item.id}" data-field="partNumber" data-on="input" style="width:120px" value="${attr(item.partNumber)}"></td>
                   <td><input class="input" id="pend-${item.id}-qty" data-action="updatePendingItem" data-id="${item.id}" data-field="qty" data-on="input" style="width:60px" type="number" value="${attr(item.qty)}"></td>
                   <td><input class="input" id="pend-${item.id}-unitCost" data-action="updatePendingItem" data-id="${item.id}" data-field="unitCost" data-on="input" style="width:80px" type="number" value="${attr(item.unitCost)}"></td>
                   <td><input class="input" id="pend-${item.id}-totalCost" data-action="updatePendingItem" data-id="${item.id}" data-field="totalCost" data-on="input" style="width:80px" type="number" value="${attr(item.totalCost)}"></td>
                   <td><input class="input" id="pend-${item.id}-vendor" data-action="updatePendingItem" data-id="${item.id}" data-field="vendor" data-on="input" style="width:130px" list="supplierList" value="${attr(item.vendor)}"></td>
                   <td><input class="input" id="pend-${item.id}-date" data-action="updatePendingItem" data-id="${item.id}" data-field="date" data-on="change" style="width:120px" type="date" value="${attr(item.date)}"></td>
                   <td><input class="input" id="pend-${item.id}-equipment" data-action="updatePendingItem" data-id="${item.id}" data-field="equipment" data-on="input" style="width:160px" list="equipmentDatalist" placeholder="Start typing…" value="${attr(item.equipment)}"></td>
+                  <td><input class="input" id="pend-${item.id}-liters" data-action="updatePendingItem" data-id="${item.id}" data-field="liters" data-on="input" style="width:90px" type="number" step="0.01" placeholder="optional" value="${attr(item.liters)}"></td>
                   <td>${trashButton('removePendingItem', 'Remove line item', `data-id="${item.id}"`)}</td>
                 </tr>
               `).join('')}
@@ -1018,7 +1034,8 @@
     const saveDisabled = !f.part.trim();
     return `
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;padding:16px;border:2px solid var(--color-divider);">
-        <div class="field"><label>Part</label><input class="input" id="mf-part" data-action="updateManualForm" data-field="part" data-on="input" style="width:280px" value="${attr(f.part)}"></div>
+        <div class="field"><label>Part</label><input class="input" id="mf-part" data-action="updateManualForm" data-field="part" data-on="input" style="width:220px" value="${attr(f.part)}"></div>
+        <div class="field"><label>Part&nbsp;#</label><input class="input" id="mf-partNumber" data-action="updateManualForm" data-field="partNumber" data-on="input" style="width:120px" value="${attr(f.partNumber)}"></div>
         <div class="field"><label>Qty</label><input class="input" id="mf-qty" data-action="updateManualForm" data-field="qty" data-on="input" style="width:60px" type="number" value="${attr(f.qty)}"></div>
         <div class="field"><label>Unit&nbsp;Cost</label><input class="input" id="mf-unitCost" data-action="updateManualForm" data-field="unitCost" data-on="input" style="width:80px" type="number" value="${attr(f.unitCost)}"></div>
         <div class="field"><label>Total&nbsp;Cost</label><input class="input" id="mf-totalCost" data-action="updateManualForm" data-field="totalCost" data-on="input" style="width:80px" type="number" value="${attr(f.totalCost)}"></div>
@@ -1043,6 +1060,7 @@
     const rows = [];
     state.equipment.forEach((eq) => {
       const cur = parseFloat(eq.hourEnd);
+      const unit = unitAbbr(eq);
       (eq.services || []).forEach((sv) => {
         const interval = parseFloat(sv.interval);
         const last = parseFloat(sv.lastHours);
@@ -1055,8 +1073,8 @@
           eqId: eq.id, eqName: eq.name, category: eq.category, svId: sv.id, svName: sv.name,
           known, pct, color: st.color, label: st.label,
           detail: known
-            ? (remaining >= 0 ? `${Math.round(remaining)} hrs left` : `${Math.round(-remaining)} hrs overdue`)
-            : 'Set interval, last-change hours and current meter',
+            ? (remaining >= 0 ? `${Math.round(remaining)} ${unit} left` : `${Math.round(-remaining)} ${unit} overdue`)
+            : `Set interval, last-change ${unit === 'km' ? 'kilometers' : 'hours'} and current meter`,
         });
       });
     });
@@ -1069,10 +1087,36 @@
       <div class="card" style="flex:1;min-width:120px;"><div class="card-kicker">${esc(label)}</div><div style="font-family:var(--font-heading);font-size:28px;color:${summaryColors[label]};">${counts[label] || 0}</div></div>
     `).join('');
 
+    const logEq = equipmentById(state.maintLogEquipmentId) || state.equipment[0] || null;
+    const logUnit = logEq ? unitAbbr(logEq) : 'hrs';
+    const readingSection = `
+      <div class="card" style="padding:20px;margin-bottom:28px;">
+        <div class="card-title" style="margin-bottom:4px;">Log a reading</div>
+        <div class="card-meta" style="margin-bottom:14px;">Update an equipment's current hour meter or odometer without opening its own page.</div>
+        ${state.equipment.length ? `
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="min-width:220px;"><label>Equipment</label>
+              <select class="input" id="maint-log-equipment" data-action="setMaintLogEquipment" data-on="change">
+                ${state.equipment.map((e) => `<option value="${e.id}" ${logEq && e.id === logEq.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field"><label>${logUnit === 'km' ? 'Current kilometers' : 'Current hours'}</label>
+              <input class="input" id="maint-log-reading" data-action="setMaintLogReading" data-on="input" style="width:150px;" type="number" step="0.1" placeholder="0" value="${attr(state.maintLogReading)}">
+            </div>
+            <div class="field"><label>Reading date</label>
+              <input class="input" id="maint-log-date" data-action="setMaintLogDate" data-on="change" style="width:150px;" type="date" value="${attr(state.maintLogDate || todayIso())}">
+            </div>
+            <button class="btn btn-secondary" data-action="logMaintReading" ${state.maintLogReading.trim() === '' ? 'disabled' : ''}>Log reading</button>
+          </div>
+        ` : `<div class="text-muted">Add equipment first from the Equipment tab.</div>`}
+      </div>
+    `;
+
     return `
       <div style="padding:40px 32px;max-width:1000px;width:100%;margin:0 auto;box-sizing:border-box;">
         <h1 style="font-size:28px;margin:0 0 8px;">Maintenance</h1>
-        <p class="text-muted" style="max-width:640px;margin-bottom:24px;">Every service interval across all equipment, most urgent first — based on each item's current hour meter.</p>
+        <p class="text-muted" style="max-width:640px;margin-bottom:24px;">Every service interval across all equipment, most urgent first — based on each item's current hour meter or odometer.</p>
+        ${readingSection}
         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">${summaryTiles}</div>
         ${rows.length ? `
           <div style="display:flex;flex-direction:column;gap:10px;">
@@ -1167,6 +1211,7 @@
     const items = allLineItems().filter((li) => li.equipmentId === eq.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const total = items.reduce((s, i) => s + (parseFloat(i.totalCost) || 0), 0);
     const curMeter = parseFloat(eq.hourEnd);
+    const unit = unitAbbr(eq);
     const services = (eq.services || []).map((sv) => {
       const interval = parseFloat(sv.interval);
       const last = parseFloat(sv.lastHours);
@@ -1176,8 +1221,8 @@
       const st = known ? serviceStatus(pct) : { color: 'var(--color-neutral-500)', label: 'Not set' };
       const remaining = known ? interval - used : 0;
       const detailLabel = known
-        ? (remaining >= 0 ? `${Math.round(used)} / ${Math.round(interval)} hrs · ${Math.round(remaining)} hrs left` : `${Math.round(used)} / ${Math.round(interval)} hrs · ${Math.round(-remaining)} hrs over`)
-        : 'Set interval, last-change hours and current meter';
+        ? (remaining >= 0 ? `${Math.round(used)} / ${Math.round(interval)} ${unit} · ${Math.round(remaining)} ${unit} left` : `${Math.round(used)} / ${Math.round(interval)} ${unit} · ${Math.round(-remaining)} ${unit} over`)
+        : `Set interval, last-change ${unit === 'km' ? 'kilometers' : 'hours'} and current meter`;
       return { ...sv, color: st.color, statusLabel: st.label, pctWidth: Math.min(100, Math.round(pct * 100)) + '%', detailLabel };
     });
 
@@ -1185,10 +1230,10 @@
     let hoursRun = null, hourWarningText = '';
     if (!isNaN(hStart) && !isNaN(hEnd)) {
       hoursRun = hEnd - hStart;
-      if (hoursRun < 0) { hoursRun = null; hourWarningText = 'Ending hours must be higher than starting hours.'; }
-      else if (hoursRun === 0) hourWarningText = 'Enter an ending hour reading higher than the start to get a rate.';
+      if (hoursRun < 0) { hoursRun = null; hourWarningText = `Ending ${unitNoun(eq)} must be higher than starting ${unitNoun(eq)}.`; }
+      else if (hoursRun === 0) hourWarningText = `Enter an ending reading higher than the start to get a rate.`;
     } else {
-      hourWarningText = 'Enter the hour-meter reading at the start and end of the period to see cost per hour.';
+      hourWarningText = `Enter the ${unit === 'km' ? 'odometer' : 'hour-meter'} reading at the start and end of the period to see the cost rate.`;
     }
     const makeModel = [eq.make, eq.model].filter(Boolean).join(' ');
 
@@ -1204,6 +1249,9 @@
             <button class="btn-icon" data-action="openHourCalc" aria-label="Operating cost per hour">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="0"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg>
             </button>
+            <button class="btn-icon" data-action="viewEquipmentReport" data-id="${eq.id}" aria-label="Equipment report">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+            </button>
           </div>
           <div style="font-family:var(--font-heading);font-size:24px;">${fmt(total)}</div>
         </div>
@@ -1215,7 +1263,7 @@
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 12px;gap:16px;flex-wrap:wrap;">
           <div class="card-title">Service Status</div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <label style="font-size:13px;color:var(--color-neutral-700);">Current hour meter</label>
+            <label style="font-size:13px;color:var(--color-neutral-700);">${unit === 'km' ? 'Current kilometers' : 'Current hour meter'}</label>
             <input class="input" id="cur-hours" data-action="setCurrentHours" data-on="change" style="width:130px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourEnd)}">
             <label style="font-size:13px;color:var(--color-neutral-700);">Reading date</label>
             <input class="input" id="hour-log-date" data-action="setHourLogDate" data-on="change" style="width:150px;" type="date" value="${attr(state.hourLogDate || todayIso())}">
@@ -1247,7 +1295,7 @@
           ` : `<div class="card-meta">No service intervals set. Use the edit button above to add engine oil, hydraulic oil, gearbox and any other interval.</div>`}
         </div>
 
-        <div class="card-title" style="margin-bottom:12px;">Hour / KM Log</div>
+        <div class="card-title" style="margin-bottom:12px;">${unit === 'km' ? 'Kilometer Log' : 'Hour Log'}</div>
         ${(eq.hourLogs || []).length ? `
           <table class="table" style="margin-bottom:36px;">
             <thead><tr><th>Date</th><th>Reading</th><th>Change since last</th><th></th></tr></thead>
@@ -1258,7 +1306,7 @@
                 return `<tr>
                   <td>${esc(log.date)}</td>
                   <td>${esc(log.hours)}</td>
-                  <td>${delta !== null ? Math.round(delta * 10) / 10 + ' hrs' : '—'}</td>
+                  <td>${delta !== null ? Math.round(delta * 10) / 10 + ' ' + unit : '—'}</td>
                   <td>${trashButton('removeHourLog', 'Remove reading', `data-eq="${eq.id}" data-id="${log.id}"`)}</td>
                 </tr>`;
               }).join('')}
@@ -1292,40 +1340,143 @@
           </div>
         `).join('')}
 
-        <div class="card-title" style="margin:36px 0 12px;">Invoice history</div>
-        ${items.length ? `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:36px 0 12px;">
+          <div class="card-title" style="margin:0;">Invoice history</div>
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:13px;" data-action="toggleInvoiceHistory">${state.invoiceHistoryOpen ? 'Hide' : 'Show'} (${items.length})</button>
+        </div>
+        ${state.invoiceHistoryOpen ? (items.length ? `
           <table class="table" style="margin-bottom:36px;">
-            <thead><tr><th>Date</th><th>Part</th><th>Vendor</th><th>Qty</th><th>Total</th><th>Source</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Part</th><th>Part&nbsp;#</th><th>Vendor</th><th>Qty</th><th>Total</th><th>Source</th><th></th></tr></thead>
             <tbody>
-              ${items.map((li) => `<tr><td>${esc(li.date)}</td><td>${esc(li.part)}</td><td>${esc(li.vendor)}</td><td>${esc(li.qty)}</td><td>${fmt(li.totalCost)}</td><td>${esc(li.fileName)}</td><td>${trashButton('removeLineItem', 'Delete expense line', `data-id="${li.id}"`)}</td></tr>`).join('')}
+              ${items.map((li) => `<tr><td>${esc(li.date)}</td><td>${esc(li.part)}</td><td>${esc(li.partNumber)}</td><td>${esc(li.vendor)}</td><td>${esc(li.qty)}</td><td>${fmt(li.totalCost)}</td><td>${esc(li.fileName)}</td><td>${trashButton('removeLineItem', 'Delete expense line', `data-id="${li.id}"`)}</td></tr>`).join('')}
             </tbody>
           </table>
-        ` : `<div class="text-muted" style="margin-bottom:36px;">No expenses recorded yet.</div>`}
+        ` : `<div class="text-muted" style="margin-bottom:36px;">No expenses recorded yet.</div>`) : ''}
       </div>
       ${state.hourCalcOpen ? renderHourCalcModal(eq, hoursRun, hourWarningText, total) : ''}
     `;
   }
 
   function renderHourCalcModal(eq, hoursRun, hourWarningText, total) {
+    const unit = unitAbbr(eq);
+    const isKm = unit === 'km';
     return `
       <div class="dialog-backdrop">
         <div class="dialog" style="max-width:520px;">
-          <div class="dialog-title">Operating cost per hour</div>
+          <div class="dialog-title">Operating cost per ${isKm ? 'kilometer' : 'hour'}</div>
           <div class="dialog-body">
             <div class="card-meta" style="margin-bottom:20px;">${esc(eq.name)}</div>
             <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;">
-              <div class="field"><label>Starting hours</label><input class="input" id="hc-start" data-action="setHourStart" data-on="change" style="width:150px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourStart)}"></div>
-              <div class="field"><label>Ending hours</label><input class="input" id="hc-end" data-action="setHourEnd" data-on="change" style="width:150px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourEnd)}"></div>
+              <div class="field"><label>Starting ${unitNoun(eq)}</label><input class="input" id="hc-start" data-action="setHourStart" data-on="change" style="width:150px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourStart)}"></div>
+              <div class="field"><label>Ending ${unitNoun(eq)}</label><input class="input" id="hc-end" data-action="setHourEnd" data-on="change" style="width:150px;" type="number" step="0.1" placeholder="0" value="${attr(eq.hourEnd)}"></div>
             </div>
             <div style="border-top:2px solid var(--color-divider);margin-top:20px;padding-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
-              <div><div class="card-meta" style="margin-bottom:6px;">Hours run</div><div style="font-family:var(--font-heading);font-size:22px;">${hoursRun !== null ? hoursRun.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' hrs' : '—'}</div></div>
+              <div><div class="card-meta" style="margin-bottom:6px;">${isKm ? 'Distance run' : 'Hours run'}</div><div style="font-family:var(--font-heading);font-size:22px;">${hoursRun !== null ? hoursRun.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' ' + unit : '—'}</div></div>
               <div><div class="card-meta" style="margin-bottom:6px;">Total expense</div><div style="font-family:var(--font-heading);font-size:22px;">${fmt(total)}</div></div>
-              <div><div class="card-meta" style="margin-bottom:6px;">Cost per hour</div><div style="font-family:var(--font-heading);font-size:22px;color:var(--color-accent-700);">${hoursRun && hoursRun > 0 ? fmt(total / hoursRun) + ' / hr' : '—'}</div></div>
+              <div><div class="card-meta" style="margin-bottom:6px;">Cost per ${isKm ? 'km' : 'hour'}</div><div style="font-family:var(--font-heading);font-size:22px;color:var(--color-accent-700);">${hoursRun && hoursRun > 0 ? fmt(total / hoursRun) + ' / ' + (isKm ? 'km' : 'hr') : '—'}</div></div>
             </div>
             ${hourWarningText ? `<div style="margin-top:16px;font-size:13px;color:var(--color-neutral-700);">${esc(hourWarningText)}</div>` : ''}
           </div>
           <div class="dialog-actions"><button class="btn btn-primary" data-action="closeHourCalc">Done</button></div>
         </div>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------- single-equipment report
+
+  // Total usage across every logged reading (last minus first) -- this is
+  // the all-time counterpart to equipmentYearUsage(), used for a lifetime
+  // cost-per-hour/km rather than a single year's.
+  function equipmentOverallUsage(eq) {
+    const logs = eq.hourLogs || [];
+    if (logs.length < 2) return null;
+    const first = parseFloat(logs[0].hours);
+    const last = parseFloat(logs[logs.length - 1].hours);
+    if (isNaN(first) || isNaN(last)) return null;
+    return Math.max(0, last - first);
+  }
+
+  function renderEquipmentReport() {
+    const eq = equipmentById(state.detailEquipmentId);
+    if (!eq) return renderEquipmentList();
+    const items = allLineItems().filter((li) => li.equipmentId === eq.id);
+    const total = items.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+    const unit = unitAbbr(eq);
+    const isKm = unit === 'km';
+
+    const usage = equipmentOverallUsage(eq);
+    const costPerUnit = usage && usage > 0 ? total / usage : null;
+
+    const fuelItems = items.filter((li) => parseFloat(li.liters) > 0);
+    const totalLiters = fuelItems.reduce((s, li) => s + (parseFloat(li.liters) || 0), 0);
+    const totalFuelCost = fuelItems.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+    const costPerLiter = totalLiters > 0 ? totalFuelCost / totalLiters : null;
+
+    const years = getYears().filter((y) => items.some((li) => (li.date || '').slice(0, 4) === String(y)));
+    const byYear = years.map((y) => ({
+      year: y,
+      total: items.filter((li) => (li.date || '').slice(0, 4) === String(y)).reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0),
+    })).sort((a, b) => b.year - a.year);
+    const maxYear = Math.max(1, ...byYear.map((r) => r.total));
+
+    const vendorAgg = {};
+    items.forEach((li) => { const v = (li.vendor || '').trim() || 'Unknown vendor'; vendorAgg[v] = (vendorAgg[v] || 0) + (parseFloat(li.totalCost) || 0); });
+    const vendors = Object.keys(vendorAgg).map((v) => ({ name: v, total: vendorAgg[v] })).sort((a, b) => b.total - a.total);
+    const maxVendor = Math.max(1, ...vendors.map((v) => v.total));
+
+    const firstLog = (eq.hourLogs || [])[0];
+    const lastLog = (eq.hourLogs || [])[(eq.hourLogs || []).length - 1];
+
+    return `
+      <div style="padding:40px 32px;max-width:900px;width:100%;margin:0 auto;box-sizing:border-box;">
+        <button class="btn btn-ghost" style="margin-bottom:16px;" data-action="viewEquipment" data-id="${eq.id}">← Back to ${esc(eq.name)}</button>
+        <h1 style="font-size:28px;margin:0 0 4px;">${esc(eq.name)} — Report</h1>
+        <p class="card-meta" style="margin-bottom:24px;">${esc([eq.category, [eq.make, eq.model].filter(Boolean).join(' ')].filter(Boolean).join(' · '))}</p>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px;">
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Total spend (all time)</div><div style="font-family:var(--font-heading);font-size:24px;">${fmt(total)}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per ${isKm ? 'kilometer' : 'hour'}</div><div style="font-family:var(--font-heading);font-size:24px;">${costPerUnit !== null ? fmt(costPerUnit) + ' / ' + (isKm ? 'km' : 'hr') : '—'}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per liter (fuel)</div><div style="font-family:var(--font-heading);font-size:24px;">${costPerLiter !== null ? fmt(costPerLiter) + ' / L' : '—'}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">${isKm ? 'Total kilometers' : 'Total hours'} logged</div><div style="font-family:var(--font-heading);font-size:24px;">${usage !== null ? Math.round(usage).toLocaleString() + ' ' + unit : '—'}</div></div>
+        </div>
+
+        ${costPerUnit === null || costPerLiter === null ? `
+          <div class="card-meta" style="margin-bottom:28px;">
+            ${costPerUnit === null ? `Cost per ${isKm ? 'kilometer' : 'hour'} needs at least two dated readings logged on this equipment's page. ` : ''}
+            ${costPerLiter === null ? `Cost per liter needs at least one expense with "Fuel liters" filled in.` : ''}
+          </div>
+        ` : ''}
+
+        <div class="card-title" style="margin-bottom:12px;">Spend by year</div>
+        ${byYear.length ? `
+          <table class="table" style="margin-bottom:32px;">
+            <thead><tr><th>Year</th><th style="width:50%;">Spend</th><th style="text-align:right;">Total</th></tr></thead>
+            <tbody>
+              ${byYear.map((r) => `<tr><td>${r.year}</td><td><div style="background:var(--color-neutral-100);height:14px;"><div style="background:${categoryColor(eq.category)};height:14px;width:${Math.round((r.total / maxYear) * 100)}%;"></div></div></td><td style="text-align:right;font-family:var(--font-heading);">${fmt(r.total)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        ` : `<div class="text-muted" style="margin-bottom:32px;">No dated expenses yet.</div>`}
+
+        <div class="card-title" style="margin-bottom:12px;">Spend by vendor</div>
+        ${vendors.length ? `
+          <table class="table" style="margin-bottom:32px;">
+            <thead><tr><th>Vendor</th><th style="width:50%;">Spend</th><th style="text-align:right;">Total</th></tr></thead>
+            <tbody>
+              ${vendors.map((v) => `<tr><td>${esc(v.name)}</td><td><div style="background:var(--color-neutral-100);height:14px;"><div style="background:var(--color-accent);height:14px;width:${Math.round((v.total / maxVendor) * 100)}%;"></div></div></td><td style="text-align:right;font-family:var(--font-heading);">${fmt(v.total)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        ` : `<div class="text-muted" style="margin-bottom:32px;">No expenses recorded yet.</div>`}
+
+        <div class="card-title" style="margin-bottom:12px;">${isKm ? 'Kilometer' : 'Hour'} log range</div>
+        <div class="card-meta" style="margin-bottom:32px;">${firstLog && lastLog && firstLog !== lastLog
+          ? `First reading ${esc(firstLog.date)} at ${esc(firstLog.hours)} ${unit} · Latest reading ${esc(lastLog.date)} at ${esc(lastLog.hours)} ${unit}`
+          : `Log at least two dated readings on this equipment's page to see a range here.`}</div>
+
+        ${fuelItems.length ? `
+          <div class="card-title" style="margin-bottom:12px;">Fuel</div>
+          <div class="card-meta" style="margin-bottom:32px;">${totalLiters.toLocaleString(undefined, { maximumFractionDigits: 1 })} L across ${fuelItems.length}${fuelItems.length === 1 ? ' fill-up' : ' fill-ups'} · ${fmt(totalFuelCost)} total</div>
+        ` : ''}
       </div>
     `;
   }
@@ -1358,7 +1509,7 @@
   function renderYearlyUsage(selectedYear, years) {
     const term = state.yearlySearch.trim().toLowerCase();
     let source = state.equipment.map((eq) => ({
-      eqId: eq.id, name: eq.name, category: eq.category, make: eq.make, model: eq.model,
+      eqId: eq.id, name: eq.name, category: eq.category, make: eq.make, model: eq.model, unit: unitAbbr(eq),
       usage: equipmentYearUsage(eq, selectedYear),
     }));
     if (term) source = source.filter((r) => r.name.toLowerCase().includes(term) || (r.make || '').toLowerCase().includes(term) || (r.model || '').toLowerCase().includes(term));
@@ -1374,22 +1525,26 @@
     const sorted = [...sortedKnown, ...unknown.sort((a, b) => a.name.localeCompare(b.name))];
 
     const maxVal = Math.max(1, ...known.map((r) => r.usage));
-    const grandTotal = known.reduce((s, r) => s + r.usage, 0);
+    const hoursTotal = known.filter((r) => r.unit !== 'km').reduce((s, r) => s + r.usage, 0);
+    const kmTotal = known.filter((r) => r.unit === 'km').reduce((s, r) => s + r.usage, 0);
+    const totalBits = [];
+    if (known.some((r) => r.unit !== 'km')) totalBits.push(Math.round(hoursTotal).toLocaleString() + ' hrs');
+    if (known.some((r) => r.unit === 'km')) totalBits.push(Math.round(kmTotal).toLocaleString() + ' km');
 
     return `
       <input class="input" id="yearly-search" data-action="setYearlySearch" data-on="input" style="width:100%;margin-bottom:20px;" placeholder="Search by name, make, or model…" value="${attr(state.yearlySearch)}">
       <div class="field" style="max-width:280px;margin-bottom:20px;">
         <label>Sort by</label>
         <select class="input" id="yearly-sort" data-action="setYearlySort" data-on="change">
-          <option value="most" ${sortMode === 'most' ? 'selected' : ''}>Most hours</option>
-          <option value="least" ${sortMode === 'least' ? 'selected' : ''}>Least hours</option>
+          <option value="most" ${sortMode === 'most' ? 'selected' : ''}>Most usage</option>
+          <option value="least" ${sortMode === 'least' ? 'selected' : ''}>Least usage</option>
           <option value="alpha" ${sortMode === 'alpha' ? 'selected' : ''}>Alphabetical</option>
           <option value="category" ${sortMode === 'category' ? 'selected' : ''}>Category</option>
         </select>
       </div>
       <div class="card-meta" style="margin-bottom:16px;">Hours/km put on during ${selectedYear} for each equipment, based on the dated readings logged on its detail page. An equipment needs a reading at or before the start of ${selectedYear} <em>and</em> one at or before its end to show a number here — log readings regularly (at minimum once a year) to keep this filled in.</div>
       <table class="table">
-        <thead><tr><th>Equipment</th><th>Category</th><th style="width:30%;">Usage</th><th style="text-align:right;">Hours in ${selectedYear}</th><th></th></tr></thead>
+        <thead><tr><th>Equipment</th><th>Category</th><th style="width:30%;">Usage</th><th style="text-align:right;">Usage in ${selectedYear}</th><th></th></tr></thead>
         <tbody>
           ${sorted.map((r) => {
             const eq = equipmentById(r.eqId);
@@ -1397,12 +1552,12 @@
               <td>${esc(r.name)}</td>
               <td>${esc(r.category)}</td>
               <td>${r.usage !== null ? `<div style="background:var(--color-neutral-100);height:16px;"><div style="background:${categoryColor(r.category)};height:16px;width:${Math.round((r.usage / maxVal) * 100)}%;"></div></div>` : ''}</td>
-              <td style="text-align:right;font-family:var(--font-heading);">${r.usage !== null ? Math.round(r.usage).toLocaleString() + ' hrs' : '<span class="card-meta">Not enough data</span>'}</td>
+              <td style="text-align:right;font-family:var(--font-heading);">${r.usage !== null ? Math.round(r.usage).toLocaleString() + ' ' + r.unit : '<span class="card-meta">Not enough data</span>'}</td>
               <td>${eq ? eyeButton('viewEquipment', 'View equipment', `data-id="${eq.id}"`) : ''}</td>
             </tr>`;
           }).join('')}
         </tbody>
-        <tfoot><tr><td style="font-family:var(--font-heading);">Total</td><td></td><td></td><td style="text-align:right;font-family:var(--font-heading);">${Math.round(grandTotal).toLocaleString()} hrs</td><td></td></tr></tfoot>
+        <tfoot><tr><td style="font-family:var(--font-heading);">Total</td><td></td><td></td><td style="text-align:right;font-family:var(--font-heading);">${totalBits.join(' · ') || '—'}</td><td></td></tr></tfoot>
       </table>
     `;
   }
@@ -1423,7 +1578,7 @@
             <button class="btn ${mode === 'category' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="category">Categories</button>
             <button class="btn ${mode === 'equipment' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="equipment">Equipment</button>
             <button class="btn ${mode === 'vendor' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="vendor">Vendors</button>
-            <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage (hrs)</button>
+            <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage</button>
           </div>
           ${renderYearlyUsage(selectedYear, years)}
         </div>
@@ -1474,7 +1629,7 @@
           <button class="btn ${mode === 'category' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="category">Categories</button>
           <button class="btn ${mode === 'equipment' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="equipment">Equipment</button>
           <button class="btn ${mode === 'vendor' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="vendor">Vendors</button>
-          <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage (hrs)</button>
+          <button class="btn ${mode === 'usage' ? 'btn-primary' : 'btn-ghost'}" data-action="setYearlyMode" data-mode="usage">Usage</button>
         </div>
         <input class="input" id="yearly-search" data-action="setYearlySearch" data-on="input" style="width:100%;margin-bottom:20px;" placeholder="${placeholder}" value="${attr(state.yearlySearch)}">
         <div class="field" style="max-width:280px;margin-bottom:20px;">
@@ -1958,10 +2113,18 @@
               <div class="field" style="flex:1;"><label>Make</label><input class="input" id="${prefix}-make" data-action="${prefix}Update" data-field="make" data-on="input" value="${attr(draft.make)}" placeholder="e.g. John Deere"></div>
               <div class="field" style="flex:1;"><label>Model</label><input class="input" id="${prefix}-model" data-action="${prefix}Update" data-field="model" data-on="input" value="${attr(draft.model)}" placeholder="e.g. 9430"></div>
             </div>
-            <div class="field"><label>Category</label>
-              <select class="input" id="${prefix}-category" data-action="${prefix}Update" data-field="category" data-on="change">
-                ${state.categories.map((c) => `<option value="${attr(c.name)}" ${c.name === draft.category ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
-              </select>
+            <div style="display:flex;gap:16px;">
+              <div class="field" style="flex:1;"><label>Category</label>
+                <select class="input" id="${prefix}-category" data-action="${prefix}Update" data-field="category" data-on="change">
+                  ${state.categories.map((c) => `<option value="${attr(c.name)}" ${c.name === draft.category ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field" style="flex:1;"><label>Tracked by</label>
+                <select class="input" id="${prefix}-meterUnit" data-action="${prefix}Update" data-field="meterUnit" data-on="change">
+                  <option value="hours" ${draft.meterUnit !== 'km' ? 'selected' : ''}>Hour meter</option>
+                  <option value="km" ${draft.meterUnit === 'km' ? 'selected' : ''}>Kilometers</option>
+                </select>
+              </div>
             </div>
             <div class="field"><label>VIN / Serial number</label><input class="input" id="${prefix}-vin" data-action="${prefix}Update" data-field="vin" data-on="input" value="${attr(draft.vin)}"></div>
             <div class="field"><label>Notes</label><textarea class="input" id="${prefix}-info" rows="3" data-action="${prefix}Update" data-field="info" data-on="input">${esc(draft.info)}</textarea></div>
@@ -2133,7 +2296,7 @@
   }
 
   function equipmentDraftPayload(d) {
-    return { name: d.name.trim(), category: d.category, make: d.make, model: d.model, vin: d.vin, info: d.info, filters: d.filters, services: d.services, manual: d.manual || null };
+    return { name: d.name.trim(), category: d.category, make: d.make, model: d.model, vin: d.vin, info: d.info, meterUnit: d.meterUnit, filters: d.filters, services: d.services, manual: d.manual || null };
   }
 
   // A manual is embedded directly in the equipment record as a data URL, so
@@ -2562,7 +2725,7 @@
     saveAllStandalone() {
       const validRows = state.standaloneRows.filter((r) => r.part.trim() && equipmentByName(r.equipment));
       if (!validRows.length) return;
-      const lineItems = validRows.map((r) => ({ part: r.part, qty: r.qty, unitCost: r.unitCost, totalCost: r.totalCost, vendor: r.vendor, date: r.date, equipmentId: equipmentByName(r.equipment).id }));
+      const lineItems = validRows.map((r) => ({ part: r.part, partNumber: r.partNumber, qty: r.qty, unitCost: r.unitCost, totalCost: r.totalCost, vendor: r.vendor, date: r.date, equipmentId: equipmentByName(r.equipment).id, liters: r.liters }));
       mutate(() => {
         Store.saveInvoice({ fileName: 'Manual entry', lineItems });
         state.standaloneRows = [blankStandaloneRow()];
@@ -2600,12 +2763,12 @@
       render();
     },
     addPendingRow() {
-      state.pendingInvoice.lineItems.push({ id: uid(), part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '' });
+      state.pendingInvoice.lineItems.push({ id: uid(), part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '', liters: '' });
       render();
     },
     saveInvoice() {
       const p = state.pendingInvoice;
-      const lineItems = p.lineItems.map((it) => ({ part: it.part, qty: it.qty, unitCost: it.unitCost, totalCost: it.totalCost, vendor: it.vendor, date: it.date, equipmentId: (equipmentByName(it.equipment) || {}).id }));
+      const lineItems = p.lineItems.map((it) => ({ part: it.part, partNumber: it.partNumber, qty: it.qty, unitCost: it.unitCost, totalCost: it.totalCost, vendor: it.vendor, date: it.date, equipmentId: (equipmentByName(it.equipment) || {}).id, liters: it.liters }));
       mutate(() => {
         Store.saveInvoice({ fileName: p.fileName, lineItems });
         state.pendingInvoice = null;
@@ -2617,7 +2780,9 @@
     setEquipmentListMode(e, d) { state.equipmentListMode = d.mode; render(); },
     selectCategory(e, d) { state.selectedCategory = d.name; render(); },
     backToCategories() { state.selectedCategory = null; render(); },
-    viewEquipment(e, d) { state.view = 'detail'; state.detailEquipmentId = Number(d.id); state.noteText = ''; state.noteDate = ''; state.hourCalcOpen = false; state.hourLogDate = todayIso(); render(); },
+    viewEquipment(e, d) { state.view = 'detail'; state.detailEquipmentId = Number(d.id); state.noteText = ''; state.noteDate = ''; state.hourCalcOpen = false; state.hourLogDate = todayIso(); state.invoiceHistoryOpen = false; render(); },
+    toggleInvoiceHistory() { state.invoiceHistoryOpen = !state.invoiceHistoryOpen; render(); },
+    viewEquipmentReport(e, d) { state.view = 'equipmentReport'; state.detailEquipmentId = Number(d.id); render(); },
     backToHistory() { state.view = 'history'; render(); },
     toggleManage(e, d) { const id = Number(d.id); state.manageOpenFor = state.manageOpenFor === id ? null : id; render(); },
     openManualForm(e, d) { state.manualFormOpenFor = Number(d.id); state.manualForm = blankManualForm(); state.manageOpenFor = null; render(); },
@@ -2663,6 +2828,18 @@
     removeHourLog(e, d) {
       mutate(() => Store.removeHourLog(Number(d.eq), Number(d.id)));
     },
+    setMaintLogEquipment(e) { state.maintLogEquipmentId = Number(e.target.value); render(); },
+    setMaintLogReading(e) { state.maintLogReading = e.target.value; render(); },
+    setMaintLogDate(e) { state.maintLogDate = e.target.value; render(); },
+    logMaintReading() {
+      const eq = equipmentById(state.maintLogEquipmentId) || state.equipment[0];
+      if (!eq || state.maintLogReading.trim() === '') return;
+      mutate(() => {
+        Store.updateHours(eq.id, { end: state.maintLogReading });
+        Store.logHourReading(eq.id, state.maintLogDate, state.maintLogReading);
+        state.maintLogReading = '';
+      });
+    },
     setHourStart(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { start: e.target.value })); },
     setHourEnd(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
     setCurrentHours(e) { mutate(() => Store.updateHours(state.detailEquipmentId, { end: e.target.value })); },
@@ -2682,7 +2859,7 @@
     startEditEquipment(e, d) {
       const eq = equipmentById(d.id);
       state.editModalOpenFor = eq.id;
-      state.editModalDraft = { name: eq.name, make: eq.make, model: eq.model, category: eq.category, vin: eq.vin, info: eq.info, filters: eq.filters.map((f) => ({ ...f })), services: eq.services.map((s) => ({ ...s })), manual: eq.manual || null, manualError: '' };
+      state.editModalDraft = { name: eq.name, make: eq.make, model: eq.model, category: eq.category, vin: eq.vin, info: eq.info, meterUnit: eq.meterUnit === 'km' ? 'km' : 'hours', filters: eq.filters.map((f) => ({ ...f })), services: eq.services.map((s) => ({ ...s })), manual: eq.manual || null, manualError: '' };
       state.manageOpenFor = null;
       render();
     },
@@ -2700,7 +2877,7 @@
 
     openAddEquipmentModal() {
       state.addModalOpen = true;
-      state.addModalDraft = { name: '', category: state.selectedCategory || (state.categories[0] || {}).name || 'Other', make: '', model: '', vin: '', info: '', filters: [], services: [], manual: null, manualError: '' };
+      state.addModalDraft = { name: '', category: state.selectedCategory || (state.categories[0] || {}).name || 'Other', make: '', model: '', vin: '', info: '', meterUnit: 'hours', filters: [], services: [], manual: null, manualError: '' };
       render();
     },
     addCancel() { state.addModalOpen = false; state.addModalDraft = null; render(); },
@@ -2817,12 +2994,12 @@
       });
       setStatus('Finding line items…');
       const { items } = InvoiceParser.parseInvoiceLines(text);
-      const rows = items.map((it) => ({ ...it, id: uid(), equipment: '' }));
+      const rows = items.map((it) => ({ part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), liters: '', ...it, id: uid(), equipment: '' }));
       if (state.pendingInvoice) {
         state.pendingInvoice.extracting = false;
         state.pendingInvoice.status = '';
         state.pendingInvoice.error = rows.length ? '' : 'No line items were recognized on this invoice. Add them by hand below — the vendor and date fields are yours to fill in.';
-        state.pendingInvoice.lineItems = rows.length ? rows : [{ id: uid(), part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '' }];
+        state.pendingInvoice.lineItems = rows.length ? rows : [{ id: uid(), part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '', liters: '' }];
       }
     } catch (err) {
       const scanned = err && err.message === 'SCANNED_PDF';
@@ -2832,7 +3009,7 @@
         state.pendingInvoice.error = scanned
           ? 'This PDF is a scan with no text layer, so there is nothing to read directly. Save the page as a JPG or PNG and upload that instead, or enter the lines by hand below.'
           : 'Could not read this invoice automatically. Add line items manually below.';
-        state.pendingInvoice.lineItems = [{ id: uid(), part: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '' }];
+        state.pendingInvoice.lineItems = [{ id: uid(), part: '', partNumber: '', qty: '1', unitCost: '', totalCost: '', vendor: '', date: todayIso(), equipment: '', liters: '' }];
       }
     }
     render();
