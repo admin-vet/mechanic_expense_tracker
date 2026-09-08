@@ -34,6 +34,7 @@
     hourLogDate: '',
     invoiceHistoryOpen: false,
     maintLogEquipmentId: null, maintLogReading: '', maintLogDate: '',
+    equipmentReportYear: null,
 
     editModalOpenFor: null, editModalDraft: null,
     addModalOpen: false, addModalDraft: null,
@@ -1404,6 +1405,7 @@
     const total = items.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
     const unit = unitAbbr(eq);
     const isKm = unit === 'km';
+    const unitLabel = isKm ? 'kilometer' : 'hour';
 
     const usage = equipmentOverallUsage(eq);
     const costPerUnit = usage && usage > 0 ? total / usage : null;
@@ -1420,6 +1422,20 @@
     })).sort((a, b) => b.year - a.year);
     const maxYear = Math.max(1, ...byYear.map((r) => r.total));
 
+    // Per-year tiles, alongside the lifetime ones above -- same math as the
+    // lifetime tiles, just scoped to whichever year is picked in the
+    // dropdown instead of the equipment's whole history.
+    const allYears = getYears();
+    const selectedYear = state.equipmentReportYear || byYear[0] && byYear[0].year || allYears[0];
+    const yearItems = items.filter((li) => (li.date || '').slice(0, 4) === String(selectedYear));
+    const yearTotal = yearItems.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+    const yearUsage = equipmentYearUsage(eq, selectedYear);
+    const yearCostPerUnit = yearUsage && yearUsage > 0 ? yearTotal / yearUsage : null;
+    const yearFuelItems = yearItems.filter((li) => parseFloat(li.liters) > 0);
+    const yearLiters = yearFuelItems.reduce((s, li) => s + (parseFloat(li.liters) || 0), 0);
+    const yearFuelCost = yearFuelItems.reduce((s, li) => s + (parseFloat(li.totalCost) || 0), 0);
+    const yearCostPerLiter = yearLiters > 0 ? yearFuelCost / yearLiters : null;
+
     const vendorAgg = {};
     items.forEach((li) => { const v = (li.vendor || '').trim() || 'Unknown vendor'; vendorAgg[v] = (vendorAgg[v] || 0) + (parseFloat(li.totalCost) || 0); });
     const vendors = Object.keys(vendorAgg).map((v) => ({ name: v, total: vendorAgg[v] })).sort((a, b) => b.total - a.total);
@@ -1434,17 +1450,35 @@
         <h1 style="font-size:28px;margin:0 0 4px;">${esc(eq.name)} — Report</h1>
         <p class="card-meta" style="margin-bottom:24px;">${esc([eq.category, [eq.make, eq.model].filter(Boolean).join(' ')].filter(Boolean).join(' · '))}</p>
 
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px;">
-          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Total spend (all time)</div><div style="font-family:var(--font-heading);font-size:24px;">${fmt(total)}</div></div>
-          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per ${isKm ? 'kilometer' : 'hour'}</div><div style="font-family:var(--font-heading);font-size:24px;">${costPerUnit !== null ? fmt(costPerUnit) + ' / ' + (isKm ? 'km' : 'hr') : '—'}</div></div>
+        <div class="card-kicker" style="margin-bottom:10px;">Lifetime</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Total spend</div><div style="font-family:var(--font-heading);font-size:24px;">${fmt(total)}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per ${unitLabel}</div><div style="font-family:var(--font-heading);font-size:24px;">${costPerUnit !== null ? fmt(costPerUnit) + ' / ' + (isKm ? 'km' : 'hr') : '—'}</div></div>
           <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per liter (fuel)</div><div style="font-family:var(--font-heading);font-size:24px;">${costPerLiter !== null ? fmt(costPerLiter) + ' / L' : '—'}</div></div>
-          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">${isKm ? 'Total kilometers' : 'Total hours'} logged</div><div style="font-family:var(--font-heading);font-size:24px;">${usage !== null ? Math.round(usage).toLocaleString() + ' ' + unit : '—'}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">${isKm ? 'Kilometers' : 'Hours'} logged</div><div style="font-family:var(--font-heading);font-size:24px;">${usage !== null ? Math.round(usage).toLocaleString() + ' ' + unit : '—'}</div></div>
         </div>
 
         ${costPerUnit === null || costPerLiter === null ? `
           <div class="card-meta" style="margin-bottom:28px;">
-            ${costPerUnit === null ? `Cost per ${isKm ? 'kilometer' : 'hour'} needs at least two dated readings logged on this equipment's page. ` : ''}
+            ${costPerUnit === null ? `Lifetime cost per ${unitLabel} needs at least two dated readings ever logged on this equipment's page. ` : ''}
             ${costPerLiter === null ? `Cost per liter needs at least one expense with "Fuel liters" filled in.` : ''}
+          </div>
+        ` : ''}
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:12px;">
+          <div class="card-kicker" style="margin:0;">Per year</div>
+          <select class="input" id="report-year" style="width:110px;" data-action="setEquipmentReportYear" data-on="change">${allYears.map((y) => `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`).join('')}</select>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Spend in ${selectedYear}</div><div style="font-family:var(--font-heading);font-size:24px;">${fmt(yearTotal)}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per ${unitLabel}</div><div style="font-family:var(--font-heading);font-size:24px;">${yearCostPerUnit !== null ? fmt(yearCostPerUnit) + ' / ' + (isKm ? 'km' : 'hr') : '—'}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">Cost per liter (fuel)</div><div style="font-family:var(--font-heading);font-size:24px;">${yearCostPerLiter !== null ? fmt(yearCostPerLiter) + ' / L' : '—'}</div></div>
+          <div class="card" style="flex:1;min-width:160px;"><div class="card-kicker">${isKm ? 'Kilometers' : 'Hours'} put on</div><div style="font-family:var(--font-heading);font-size:24px;">${yearUsage !== null ? Math.round(yearUsage).toLocaleString() + ' ' + unit : '—'}</div></div>
+        </div>
+        ${yearCostPerUnit === null || yearCostPerLiter === null ? `
+          <div class="card-meta" style="margin-bottom:28px;">
+            ${yearCostPerUnit === null ? `Needs a reading at or before the start of ${selectedYear} <em>and</em> one at or before its end. ` : ''}
+            ${yearCostPerLiter === null ? `No fuel expenses (with liters entered) logged for ${selectedYear}.` : ''}
           </div>
         ` : ''}
 
@@ -2782,7 +2816,8 @@
     backToCategories() { state.selectedCategory = null; render(); },
     viewEquipment(e, d) { state.view = 'detail'; state.detailEquipmentId = Number(d.id); state.noteText = ''; state.noteDate = ''; state.hourCalcOpen = false; state.hourLogDate = todayIso(); state.invoiceHistoryOpen = false; render(); },
     toggleInvoiceHistory() { state.invoiceHistoryOpen = !state.invoiceHistoryOpen; render(); },
-    viewEquipmentReport(e, d) { state.view = 'equipmentReport'; state.detailEquipmentId = Number(d.id); render(); },
+    viewEquipmentReport(e, d) { state.view = 'equipmentReport'; state.detailEquipmentId = Number(d.id); state.equipmentReportYear = null; render(); },
+    setEquipmentReportYear(e) { state.equipmentReportYear = parseInt(e.target.value, 10); render(); },
     backToHistory() { state.view = 'history'; render(); },
     toggleManage(e, d) { const id = Number(d.id); state.manageOpenFor = state.manageOpenFor === id ? null : id; render(); },
     openManualForm(e, d) { state.manualFormOpenFor = Number(d.id); state.manualForm = blankManualForm(); state.manageOpenFor = null; render(); },

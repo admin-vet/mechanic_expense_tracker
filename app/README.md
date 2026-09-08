@@ -242,12 +242,17 @@ you did log).
 ## Per-equipment report
 
 The graph icon next to an equipment's edit and calculator icons (on its detail page) opens
-a report scoped to just that one machine: total spend, cost per hour or per kilometer
-(lifetime spend divided by the total logged usage — needs at least two dated readings),
-cost per liter of fuel, spend by year, and spend by vendor. Cost-per-liter comes from the
-optional "Fuel liters" field on an expense line (see below) — it's the total cost of every
-expense with liters entered, divided by the total liters, so it only reflects purchases
-actually tagged as fuel rather than guessing from a part description.
+a report scoped to just that one machine, with two matching sets of tiles: **Lifetime**
+(total spend, cost per hour/km, cost per liter of fuel, and total usage across every
+logged reading) and **Per year** (the same four figures for whichever year is picked from
+the dropdown, defaulting to the most recent year with expense data). The year figures use
+the same math as Reports → Usage — the last reading at or before that year's end minus the
+last one at or before its start — so a year with only one reading, or none, shows "Not
+enough data" rather than a guess. Below both sets of tiles: spend by year and spend by
+vendor tables for the equipment as a whole. Cost-per-liter (lifetime or per year) comes
+from the optional "Fuel liters" field on an expense line (see below) — it's the total cost
+of every expense with liters entered divided by the total liters, so it only reflects
+purchases actually tagged as fuel rather than guessing from a part description.
 
 ## Part numbers and fuel liters on expenses
 
